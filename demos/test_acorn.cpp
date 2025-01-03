@@ -270,13 +270,14 @@ int main(int argc, char* argv[]) {
         // std::string filename = "hybrid_index" + dataset + ".index";
         std::stringstream filepath_stream;
         if (dataset == "sift1M" || dataset == "sift1B") {
-            filepath_stream << "./tmp_multi/hybrid_" << (int)(N / 1000 / 1000)
-                            << "m_nc=" << n_centroids
+            filepath_stream << "../acorn_data/tmp_multi/hybrid_"
+                            << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
                             << "_assignment=" << assignment_type
                             << "_alpha=" << alpha << ".json";
 
         } else {
-            filepath_stream << "./tmp_multi/" << dataset << "/hybrid"
+            filepath_stream << "../acorn_data/tmp_multi/" << dataset
+                            << "/hybrid"
                             << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
                             << "_gamma=" << gamma << ".json";
         }
@@ -289,13 +290,14 @@ int main(int argc, char* argv[]) {
         // write hybrid_gamma1 index
         std::stringstream filepath_stream2;
         if (dataset == "sift1M" || dataset == "sift1B") {
-            filepath_stream2 << "./tmp_multi/hybrid_gamma1_"
+            filepath_stream2 << "../acorn_data/tmp_multi/hybrid_gamma1_"
                              << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
                              << "_assignment=" << assignment_type
                              << "_alpha=" << alpha << ".json";
 
         } else {
-            filepath_stream2 << "./tmp_multi/" << dataset << "/hybrid"
+            filepath_stream2 << "../acorn_data/tmp_multi/" << dataset
+                             << "/hybrid"
                              << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
                              << "_gamma=" << 1 << ".json";
         }
@@ -308,13 +310,15 @@ int main(int argc, char* argv[]) {
         { // write base index
             std::stringstream filepath_stream;
             if (dataset == "sift1M" || dataset == "sift1B") {
-                filepath_stream << "./tmp_multi/base_" << (int)(N / 1000 / 1000)
+                filepath_stream << "../acorn_data/tmp_multi/base_"
+                                << (int)(N / 1000 / 1000)
                                 << "m_nc=" << n_centroids
                                 << "_assignment=" << assignment_type
                                 << "_alpha=" << alpha << ".json";
 
             } else {
-                filepath_stream << "./tmp_multi/" << dataset << "/base"
+                filepath_stream << "../acorn_data/tmp_multi/" << dataset
+                                << "/base"
                                 << "_M=" << M << "_efc=" << efc << ".json";
             }
             std::string filepath = filepath_stream.str();
@@ -468,7 +472,7 @@ int main(int argc, char* argv[]) {
             save_distances_to_json(nq, N, all_distances, "distances");
         } else {
             all_distances = read_all_distances(
-                    "./acorn_data/my_dis_of_every_query", nq, N);
+                    "../acorn_data/my_dis_of_every_query", nq, N);
         }
 
         // 计算覆盖率并生成 JSON 文件
@@ -480,20 +484,20 @@ int main(int argc, char* argv[]) {
                     optional_coverage, metadata_multi, "optional_coverage");
         } else {
             optional_coverage = read_optional_coverage(
-                    "./acorn_data/my_opattr_coverage", nq, N);
+                    "../acorn_data/my_opattr_coverage", nq, N);
         }
 
         std::vector<std::vector<float>> all_cost;
         if (generate_json) {
             float alpha = 0.5f; // 设置 alpha 值
             calculate_and_save_cost(
-                    "./acorn_data/my_dis_of_every_query",
-                    "./acorn_data/my_opattr_coverage",
-                    "./acorn_data/my_cost",
+                    "../acorn_data/my_dis_of_every_query",
+                    "../acorn_data/my_opattr_coverage",
+                    "../acorn_data/my_cost",
                     all_cost,
                     alpha);
         } else {
-            all_cost = read_all_cost("./acorn_data/my_cost", nq, N);
+            all_cost = read_all_cost("../acorn_data/my_cost", nq, N);
         }
 
         double t1_x = elapsed();
@@ -546,9 +550,9 @@ int main(int argc, char* argv[]) {
                 all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
         // 计算recall
         if (generate_json) {
-            create_directory("./acorn_data/my_cost_sort_filter");
+            create_directory("../acorn_data/my_cost_sort_filter");
             saveAllCostToJSON(
-                    sort_filter_all_cost, "./acorn_data/my_cost_sort_filter");
+                    sort_filter_all_cost, "../acorn_data/my_cost_sort_filter");
         }
         double recall = calculateRecall(sort_filter_all_cost, cost2, nq, k);
         std::cout << "Recall: " << recall << std::endl;

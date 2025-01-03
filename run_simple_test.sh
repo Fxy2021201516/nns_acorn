@@ -9,7 +9,7 @@ rm -rf build
 
 # 删除日期命名的目录 (例如：12-29-2024_sift1M)
 now=$(date +"%m-%d-%Y")
-rm -rf acorn_data/${now}_sift1M
+rm -rf ../acorn_data/${now}_sift1M
 
 
 
@@ -35,7 +35,7 @@ M=32
 M_beta=64
 
 
-parent_dir=acorn_data/${now}_${dataset}  
+parent_dir=../acorn_data/${now}_${dataset}  
 mkdir -p ${parent_dir}                      
 dir=${parent_dir}/MB${M_beta}
 mkdir -p ${dir}                          
