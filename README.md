@@ -105,9 +105,6 @@ for (int xq = 0; xq < nq; xq++) {
 // perform efficient hybrid search
 acorn_gamma.search(nq, xq, k, dis2.data(), nns2.data(), filter_ids_map.data());
 ```
-Here’s the revised version in a style consistent with the previous introductions:
-
----
 
 ## ACORN: Multi-Attribute Support with Required Attributes
 
