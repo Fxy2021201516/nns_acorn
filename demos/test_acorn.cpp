@@ -467,7 +467,8 @@ int main(int argc, char* argv[]) {
                     nq, xq, k, all_distances, nns2.data(), query_id);
             save_distances_to_json(nq, N, all_distances, "distances");
         } else {
-            all_distances = read_all_distances("my_dis_of_every_query", nq, N);
+            all_distances = read_all_distances(
+                    "./acorn_data/my_dis_of_every_query", nq, N);
         }
 
         // 计算覆盖率并生成 JSON 文件
@@ -478,21 +479,21 @@ int main(int argc, char* argv[]) {
             save_coverage_to_json(
                     optional_coverage, metadata_multi, "optional_coverage");
         } else {
-            optional_coverage =
-                    read_optional_coverage("my_opattr_coverage", nq, N);
+            optional_coverage = read_optional_coverage(
+                    "./acorn_data/my_opattr_coverage", nq, N);
         }
 
         std::vector<std::vector<float>> all_cost;
         if (generate_json) {
             float alpha = 0.5f; // 设置 alpha 值
             calculate_and_save_cost(
-                    "my_dis_of_every_query",
-                    "my_opattr_coverage",
-                    "my_cost",
+                    "./acorn_data/my_dis_of_every_query",
+                    "./acorn_data/my_opattr_coverage",
+                    "./acorn_data/my_cost",
                     all_cost,
                     alpha);
         } else {
-            all_cost = read_all_cost("my_cost", nq, N);
+            all_cost = read_all_cost("./acorn_data/my_cost", nq, N);
         }
 
         double t1_x = elapsed();
@@ -545,8 +546,9 @@ int main(int argc, char* argv[]) {
                 all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
         // 计算recall
         if (generate_json) {
-            create_directory("my_cost_sort_filter");
-            saveAllCostToJSON(sort_filter_all_cost, "my_cost_sort_filter");
+            create_directory("./acorn_data/my_cost_sort_filter");
+            saveAllCostToJSON(
+                    sort_filter_all_cost, "./acorn_data/my_cost_sort_filter");
         }
         double recall = calculateRecall(sort_filter_all_cost, cost2, nq, k);
         std::cout << "Recall: " << recall << std::endl;

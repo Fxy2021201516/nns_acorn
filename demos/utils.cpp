@@ -53,8 +53,8 @@ using json = nlohmann::json;
  **/
 
 // MACRO
-#define TESTING_DATA_DIR "./testing_data"
-#define TESTING_DATA_MULTI_DIR "./testing_data_multi"
+#define TESTING_DATA_DIR "../acorn_data/testing_data"
+#define TESTING_DATA_MULTI_DIR "../acorn_data/testing_data_multi"
 
 #include <zlib.h>
 #include <cstring>
@@ -217,18 +217,18 @@ int* ivecs_read(const char* fname, size_t* d_out, size_t* n_out) {
 // get file name to load data vectors from
 std::string get_file_name(std::string dataset, bool is_base) {
     if (dataset == "sift1M" || dataset == "sift1M_test") {
-        return std::string("./Datasets/sift1M/sift_") +
+        return std::string("../acorn_data/Datasets/sift1M/sift_") +
                 (is_base ? "base" : "query") + ".fvecs";
     } else if (dataset == "sift1B") {
-        return std::string("./Datasets/sift1B/bigann_") +
+        return std::string("../acorn_data/Datasets/sift1B/bigann_") +
                 (is_base ? "base_10m" : "query") + ".fvecs";
     } else if (dataset == "tripclick") {
-        return std::string("./Datasets/tripclick/") +
+        return std::string("../acorn_data/Datasets/tripclick/") +
                 (is_base ? "base_vecs_tripclick"
                          : "query_vecs_tripclick_min100") +
                 ".fvecs";
     } else if (dataset == "paper" || dataset == "paper_rand2m") {
-        return std::string("./Datasets/paper/") +
+        return std::string("../acorn_data/Datasets/paper/") +
                 (is_base ? "paper_base" : "paper_query") + ".fvecs";
     } else {
         std::cerr << "Invalid datset in get_file_name" << std::endl;
@@ -941,12 +941,12 @@ void save_single_query_to_json(
     j = query_distances;
 
     // 确保文件夹 'dis_of_every_query' 存在，如果不存在则创建
-    create_directory("my_dis_of_every_query");
+    create_directory("../acorn_data/my_dis_of_every_query");
 
     // 生成查询的文件名，格式为
     // "dis_of_every_query/query_<query_idx>.json"
-    std::string filename = "my_dis_of_every_query/" + filename_prefix +
-            "_query_" + std::to_string(query_idx) + ".json";
+    std::string filename = "../acorn_data/my_dis_of_every_query/" +
+            filename_prefix + "_query_" + std::to_string(query_idx) + ".json";
 
     // 打开文件并写入 JSON 数据
     std::ofstream output_file(filename);
@@ -1045,11 +1045,11 @@ void save_sorted_distances(
         j = query_distances;
 
         // 确保文件夹 'sorted_dis_of_every_query' 存在，如果不存在则创建
-        create_directory("my_sorted_dis_of_every_query");
+        create_directory("../acorn_data/my_sorted_dis_of_every_query");
 
         // 生成查询的文件名，格式为
         // "sorted_dis_of_every_query/query_<query_idx>.json"
-        std::string filename = "my_sorted_dis_of_every_query/" +
+        std::string filename = "../acorn_data/my_sorted_dis_of_every_query/" +
                 filename_prefix + "_query_" + std::to_string(i) + ".json";
 
         // 打开文件并写入 JSON 数据
@@ -1124,7 +1124,7 @@ void save_coverage_to_json(
         const std::vector<std::vector<float>>& coverage,     // 属性覆盖率
         const std::vector<std::vector<int>>& metadata_multi, // 向量的属性
         const std::string& base_filename) { // 输出文件名的基础部分
-    create_directory("my_opattr_coverage");
+    create_directory("../acorn_data/my_opattr_coverage");
 
     // 遍历每个查询的覆盖率
     for (size_t q = 0; q < coverage.size(); ++q) {

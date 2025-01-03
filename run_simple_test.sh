@@ -9,7 +9,8 @@ rm -rf build
 
 # 删除日期命名的目录 (例如：12-29-2024_sift1M)
 now=$(date +"%m-%d-%Y")
-rm -rf ${now}_sift1M
+rm -rf acorn_data/${now}_sift1M
+
 
 
 cmake -DFAISS_ENABLE_GPU=OFF -DFAISS_ENABLE_PYTHON=OFF -DBUILD_TESTING=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -B build
@@ -34,11 +35,11 @@ M=32
 M_beta=64
 
 
-
-parent_dir=${now}_${dataset}
-mkdir ${parent_dir}
+parent_dir=acorn_data/${now}_${dataset}  
+mkdir -p ${parent_dir}                      
 dir=${parent_dir}/MB${M_beta}
-mkdir ${dir}
+mkdir -p ${dir}                          
+
 
 TZ='America/Los_Angeles' date +"Start time: %H:%M" &>> ${dir}/summary_sift_n=${N}_gamma=${gamma}.txt
 

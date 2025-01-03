@@ -70,7 +70,7 @@ endif()
 
 include(FetchContent)
 FetchContent_Declare(nlohmann_json
-    URL "file:///home/fengxiaoyao/ACORN_e/json-3.10.4.tar.gz"
+    URL "file:///home/fengxiaoyao/acorn_data/json-3.10.4.tar.gz"
 )
 FetchContent_MakeAvailable(nlohmann_json)
 # FetchContent_GetProperties(nlohmann_json)
