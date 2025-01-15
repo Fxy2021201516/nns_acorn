@@ -35,14 +35,13 @@
 #include <faiss/utils/sorting.h>
 
 // # added
-#include <sys/time.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include <iostream>
 
 /*******************************************************
  * Added for debugging
  *******************************************************/
-
 
 // const int debugFlag = 2;
 
@@ -61,7 +60,7 @@
 // }
 
 // //needs atleast 2 args always
-// //  alt debugFlag = 1 // fprintf(stderr, fmt, __VA_ARGS__); 
+// //  alt debugFlag = 1 // fprintf(stderr, fmt, __VA_ARGS__);
 // #define debug(fmt, ...) \
 //     do { \
 //         if (debugFlag == 1) { \
@@ -69,20 +68,16 @@
 //         } \
 //         if (debugFlag == 2) { \
 //             debugTime(); \
-//             fprintf(stdout, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
+//             fprintf(stdout, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__,
+//             __VA_ARGS__); \
 //         } \
 //     } while (0)
-
-
 
 // double elapsed() {
 //     struct timeval tv;
 //     gettimeofday(&tv, NULL);
 //     return tv.tv_sec + tv.tv_usec * 1e-6;
 // }
-
-
-
 
 extern "C" {
 
@@ -201,7 +196,7 @@ void hnsw_add_vertices(
 
     { // make buckets with vectors of the same level
 
-        // std::cout << "here 3 in hnsw_add_vertices" << std::endl;    
+        // std::cout << "here 3 in hnsw_add_vertices" << std::endl;
         // build histogram
         for (int i = 0; i < n; i++) {
             storage_idx_t pt_id = i + n0;
@@ -266,9 +261,8 @@ void hnsw_add_vertices(
                 // too large when (i1 - i0) / num_threads >> 1
 #pragma omp for schedule(static)
                 for (int i = i0; i < i1; i++) {
-                    // std::cout << "here 6.5 in hnsw_add_vertices" << std::endl;
-                    // printf("i: %d\n", i);
-                    // printf("i0: %d\n", i0);
+                    // std::cout << "here 6.5 in hnsw_add_vertices" <<
+                    // std::endl; printf("i: %d\n", i); printf("i0: %d\n", i0);
                     // printf("i1: %d\n", i1);
                     storage_idx_t pt_id = order[i];
                     dis->set_query(x + (pt_id - n0) * d);
@@ -302,7 +296,8 @@ void hnsw_add_vertices(
                 FAISS_THROW_MSG("computation interrupted");
             }
             i1 = i0;
-            // std::cout << "here 13 in hnsw_add_vertices, new i1: " << i1 << std::endl;
+            // std::cout << "here 13 in hnsw_add_vertices, new i1: " << i1 <<
+            // std::endl;
         }
         FAISS_ASSERT(i1 == 0);
     }
@@ -423,7 +418,8 @@ void hybrid_hnsw_add_vertices(
                         continue;
                     }
 
-                    hnsw.hybrid_add_with_locks(*dis, pt_level, pt_id, locks, vt);
+                    hnsw.hybrid_add_with_locks(
+                            *dis, pt_level, pt_id, locks, vt);
 
                     if (prev_display >= 0 && i - i0 > prev_display + 10000) {
                         prev_display = i - i0;
@@ -470,6 +466,29 @@ IndexHNSW::IndexHNSW(int d, int M, int gamma, MetricType metric)
 IndexHNSW::IndexHNSW(Index* storage, int M, int gamma)
         : Index(storage->d, storage->metric_type),
           hnsw(M, gamma),
+          own_fields(false),
+          storage(storage),
+          reconstruct_from_neighbors(nullptr) {}
+
+IndexHNSW::IndexHNSW(
+        std::vector<std::vector<int>>& metadata_multi,
+        int d,
+        int M,
+        int gamma,
+        MetricType metric)
+        : Index(d, metric),
+          hnsw(metadata_multi, M, gamma),
+          own_fields(false),
+          storage(nullptr),
+          reconstruct_from_neighbors(nullptr) {}
+
+IndexHNSW::IndexHNSW(
+        Index* storage,
+        std::vector<std::vector<int>>& metadata_multi,
+        int M,
+        int gamma)
+        : Index(storage->d, storage->metric_type),
+          hnsw(metadata_multi, M, gamma),
           own_fields(false),
           storage(storage),
           reconstruct_from_neighbors(nullptr) {}
@@ -574,6 +593,101 @@ void IndexHNSW::search(
     // printf("done with search\n");
 }
 
+// fxy_add
+void IndexHNSW::search_multi(
+        idx_t n,
+        const float* x,
+        idx_t k,
+        float* costs,
+        idx_t* labels,
+        const std::vector<std::vector<int>> aq_multi,
+        std::vector<std::vector<float>>& all_cost,
+        int query_id,
+        const std::vector<std::vector<int>>& metadata_multi ,
+        const SearchParameters* params_in) const {
+    std::cout << "here in search_multi" << std::endl;
+    FAISS_THROW_IF_NOT(k > 0);
+    FAISS_THROW_IF_NOT_MSG(
+            storage,
+            "Please use IndexHNSWFlat (or variants) instead of IndexHNSW directly");
+    const SearchParametersHNSW* params = nullptr;
+
+    int efSearch = hnsw.efSearch;
+    if (params_in) {
+        params = dynamic_cast<const SearchParametersHNSW*>(params_in);
+        FAISS_THROW_IF_NOT_MSG(params, "params type invalid");
+        efSearch = params->efSearch;
+    }
+    size_t n1 = 0, n2 = 0, n3 = 0, ndis = 0, nreorder = 0;
+
+    idx_t check_period =
+            InterruptCallback::get_period_hint(hnsw.max_level * d * efSearch);
+
+    for (idx_t i0 = 0; i0 < n; i0 += check_period) {
+        idx_t i1 = std::min(i0 + check_period, n);
+
+#pragma omp parallel
+        {
+            VisitedTable vt(ntotal);
+
+            DistanceComputer* dis = storage_distance_computer(storage);
+            ScopeDeleter1<DistanceComputer> del(dis);
+
+#pragma omp for reduction(+ : n1, n2, n3, ndis, nreorder)
+            for (idx_t i = i0; i < i1; i++) {
+                idx_t* idxi = labels + i * k;
+                float* simi = costs + i * k;
+                dis->set_query(x + i * d);
+
+                maxheap_heapify(k, simi, idxi);
+                // HNSWStats stats = hnsw.search(*dis, k, idxi, simi, vt,
+                // params);
+                HNSWStats stats = hnsw.search_multi(
+                        *dis,
+                        k,
+                        idxi,
+                        simi,
+                        vt,
+                        aq_multi,
+                        all_cost,
+                        i, // query_id
+                        metadata_multi,
+                        params);
+                n1 += stats.n1;
+                n2 += stats.n2;
+                n3 += stats.n3;
+                ndis += stats.ndis;
+                nreorder += stats.nreorder;
+                maxheap_reorder(k, simi, idxi);
+
+                if (reconstruct_from_neighbors &&
+                    reconstruct_from_neighbors->k_reorder != 0) {
+                    int k_reorder = reconstruct_from_neighbors->k_reorder;
+                    if (k_reorder == -1 || k_reorder > k)
+                        k_reorder = k;
+
+                    nreorder += reconstruct_from_neighbors->compute_distances(
+                            k_reorder, idxi, x + i * d, simi);
+
+                    // sort top k_reorder
+                    maxheap_heapify(
+                            k_reorder, simi, idxi, simi, idxi, k_reorder);
+                    maxheap_reorder(k_reorder, simi, idxi);
+                }
+            }
+        }
+        InterruptCallback::check();
+    }
+
+    // if (metric_type == METRIC_INNER_PRODUCT) {
+    //     // we need to revert the negated distances
+    //     for (size_t i = 0; i < k * n; i++) {
+    //         distances[i] = -distances[i];
+    //     }
+    // }
+
+    hnsw_stats.combine({n1, n2, n3, ndis, nreorder});
+}
 
 void IndexHNSW::partition_search(
         idx_t n,
@@ -603,8 +717,9 @@ void IndexHNSW::partition_search(
     }
     size_t n1 = 0, n2 = 0, n3 = 0, ndis = 0, nreorder = 0;
 
-    idx_t check_period =
-            InterruptCallback::get_period_hint(partition_indices[num_partitions-1]->hnsw.max_level * d * efSearch);
+    idx_t check_period = InterruptCallback::get_period_hint(
+            partition_indices[num_partitions - 1]->hnsw.max_level * d *
+            efSearch);
 
     for (idx_t i0 = 0; i0 < n; i0 += check_period) {
         idx_t i1 = std::min(i0 + check_period, n);
@@ -614,12 +729,13 @@ void IndexHNSW::partition_search(
             VisitedTable vt(ntotal);
 
             // DistanceComputer* dis = storage_distance_computer(storage);
-            DistanceComputer** dis_array = new DistanceComputer*[num_partitions];
+            DistanceComputer** dis_array =
+                    new DistanceComputer*[num_partitions];
             for (int i = 0; i < num_partitions; i++) {
-                dis_array[i] = storage_distance_computer(partition_indices[i]->storage);
+                dis_array[i] = storage_distance_computer(
+                        partition_indices[i]->storage);
             }
             // ScopeDeleter1<DistanceComputer> del(dis);
-    
 
 #pragma omp for reduction(+ : n1, n2, n3, ndis, nreorder)
             for (idx_t i = i0; i < i1; i++) {
@@ -628,12 +744,14 @@ void IndexHNSW::partition_search(
                 // dis->set_query(x + i * d);
                 dis_array[filters[i]]->set_query(x + i * d);
 
-
                 maxheap_heapify(k, simi, idxi);
-                // printf("here in partition search, i: %ld, filters[i]: %d\n", i, filters[i]);
-                // std::cout << "here1 - filter: " << filters[i] << ", i: " << i << std::endl;
-                HNSWStats stats = partition_indices[filters[i]]->hnsw.search(*dis_array[filters[i]], k, idxi, simi, vt, params);
-                // HNSWStats stats = hnsw.search(*dis, k, idxi, simi, vt, params);
+                // printf("here in partition search, i: %ld, filters[i]: %d\n",
+                // i, filters[i]); std::cout << "here1 - filter: " << filters[i]
+                // << ", i: " << i << std::endl;
+                HNSWStats stats = partition_indices[filters[i]]->hnsw.search(
+                        *dis_array[filters[i]], k, idxi, simi, vt, params);
+                // HNSWStats stats = hnsw.search(*dis, k, idxi, simi, vt,
+                // params);
                 n1 += stats.n1;
                 n2 += stats.n2;
                 n3 += stats.n3;
@@ -693,7 +811,7 @@ void IndexHNSW::add(idx_t n, const float* x) {
     ntotal = storage->ntotal;
 
     // std::cout << "here in add 4" << std::endl;
-    
+
     // print all parameters
     // std::cout << "ntotal: " << ntotal << std::endl;
     // std::cout << "n0: " << n0 << std::endl;
@@ -1461,7 +1579,6 @@ void IndexHNSW2Level::flip_to_ivf() {
     delete storage2l;
 }
 
-
 /**************************************************************
  * IndexHNSWHybrid implementation
  **************************************************************/
@@ -1471,11 +1588,17 @@ IndexHNSWHybridOld::IndexHNSWHybridOld() {
 }
 
 // hybrid HNSW only implemented using Flat storage
-IndexHNSWHybridOld::IndexHNSWHybridOld(int d, int M, int gamma, std::vector<int>& metadata, MetricType metric)
-        : IndexHNSWFlat(d, M, gamma, metric) { 
+IndexHNSWHybridOld::IndexHNSWHybridOld(
+        int d,
+        int M,
+        int gamma,
+        std::vector<int>& metadata,
+        MetricType metric)
+        : IndexHNSWFlat(d, M, gamma, metric) {
     own_fields = true;
     is_trained = true;
-    hnsw.metadata = metadata.data();
+    // hnsw.metadata = metadata.data();
+    hnsw.metadata = std::vector<int>(metadata);
     // debug("ntotal: %ld, metadata size; %ld\n", ntotal, metadata.size());
     // assert(ntotal == metadata.size());
     // if (!metadata) {
@@ -1483,7 +1606,6 @@ IndexHNSWHybridOld::IndexHNSWHybridOld(int d, int M, int gamma, std::vector<int>
     //     exit(0);
     // }
 }
-
 
 // add n vectors of dimension d to the index, x is the matrix of vectors
 void IndexHNSWHybridOld::add(idx_t n, const float* x) {
@@ -1501,17 +1623,18 @@ void IndexHNSWHybridOld::add(idx_t n, const float* x) {
     hnsw_add_vertices(*this, n0, n, x, verbose, hnsw.levels.size() == ntotal);
 }
 
-// this is the same as search but it calls hnsw::hybrid_search, instead of hnsw::search
+// this is the same as search but it calls hnsw::hybrid_search, instead of
+// hnsw::search
 void IndexHNSWHybridOld::search(
-            idx_t n,
-            const float* x,
-            idx_t k,
-            float* distances,
-            idx_t* labels,
-            int* filters,
-            Operation op,
-            std::string regex,
-            const SearchParameters* params_in) const {
+        idx_t n,
+        const float* x,
+        idx_t k,
+        float* distances,
+        idx_t* labels,
+        int* filters,
+        Operation op,
+        std::string regex,
+        const SearchParameters* params_in) const {
     FAISS_THROW_IF_NOT(k > 0);
     FAISS_THROW_IF_NOT_MSG(
             storage,
@@ -1547,14 +1670,23 @@ void IndexHNSWHybridOld::search(
 
                 maxheap_heapify(k, simi, idxi);
                 // printf("calling hybrid search\n");
-                HNSWStats stats = hnsw.hybrid_search(*dis, k, idxi, simi, vt, filters[i], op, regex, params); //TODO edit to hybrid search
+                HNSWStats stats = hnsw.hybrid_search(
+                        *dis,
+                        k,
+                        idxi,
+                        simi,
+                        vt,
+                        filters[i],
+                        op,
+                        regex,
+                        params); // TODO edit to hybrid search
                 n1 += stats.n1;
                 n2 += stats.n2;
                 n3 += stats.n3;
                 ndis += stats.ndis;
                 nreorder += stats.nreorder;
                 maxheap_reorder(k, simi, idxi);
-                
+
                 // TODO-LATER handle this branch later
                 if (reconstruct_from_neighbors &&
                     reconstruct_from_neighbors->k_reorder != 0) {

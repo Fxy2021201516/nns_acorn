@@ -79,8 +79,23 @@ struct IndexHNSW : Index {
 
     ReconstructFromNeighbors* reconstruct_from_neighbors;
 
-    explicit IndexHNSW(int d = 0, int M = 32, int gamma = 1, MetricType metric = METRIC_L2);
+    explicit IndexHNSW(
+            int d = 0,
+            int M = 32,
+            int gamma = 1,
+            MetricType metric = METRIC_L2);
     explicit IndexHNSW(Index* storage, int M = 32, int gamma = 1);
+    explicit IndexHNSW(
+            std::vector<std::vector<int>>& metadata_multi,
+            int d = 0,
+            int M = 32,
+            int gamma = 1,
+            MetricType metric = METRIC_L2);
+    explicit IndexHNSW(
+            Index* storage,
+            std::vector<std::vector<int>>& metadata_multi,
+            int M = 32,
+            int gamma = 1);
 
     ~IndexHNSW() override;
 
@@ -98,6 +113,17 @@ struct IndexHNSW : Index {
             float* distances,
             idx_t* labels,
             const SearchParameters* params = nullptr) const override;
+    void search_multi(
+            idx_t n,
+            const float* x,
+            idx_t k,
+            float* distances,
+            idx_t* labels,
+            const std::vector<std::vector<int>> aq_multi,
+            std::vector<std::vector<float>>& all_cost,
+            int query_id,
+            const std::vector<std::vector<int>>& metadata_multi ,
+            const SearchParameters* params = nullptr) const;
 
     // assume equality predicates only
     void partition_search(
@@ -149,7 +175,7 @@ struct IndexHNSW : Index {
     void link_singletons();
 
     // added for debugging
-    void printStats(bool print_edge_list=false, bool is_hybrid=false);
+    void printStats(bool print_edge_list = false, bool is_hybrid = false);
 };
 
 /** Flat index topped with with a HNSW structure to access elements
@@ -159,6 +185,7 @@ struct IndexHNSW : Index {
 struct IndexHNSWFlat : IndexHNSW {
     IndexHNSWFlat();
     IndexHNSWFlat(int d, int M, int gamma = 1, MetricType metric = METRIC_L2);
+    //IndexHNSWFlat(std::vector<std::vector<int>>& metadata,int d, int M, int gamma = 1, MetricType metric = METRIC_L2);
 };
 
 /** PQ index topped with with a HNSW structure to access elements
@@ -200,7 +227,6 @@ struct IndexHNSW2Level : IndexHNSW {
             const SearchParameters* params = nullptr) const override;
 };
 
-
 /**************************************************************
  * HYBRID INDEX
  **************************************************************/
@@ -209,11 +235,17 @@ struct IndexHNSW2Level : IndexHNSW {
 // TODO - change metadata from int* to generic type
 struct IndexHNSWHybridOld : IndexHNSWFlat {
     IndexHNSWHybridOld();
-    IndexHNSWHybridOld(int d, int M, int gamma, std::vector<int>& metadata, MetricType metric = METRIC_L2);
+    IndexHNSWHybridOld(
+            int d,
+            int M,
+            int gamma,
+            std::vector<int>& metadata,
+            MetricType metric = METRIC_L2);
 
     void add(idx_t n, const float* x) override;
 
-    // this doesn't override normal search since definition has a filter param - search is overloaded
+    // this doesn't override normal search since definition has a filter param -
+    // search is overloaded
     void search(
             idx_t n,
             const float* x,

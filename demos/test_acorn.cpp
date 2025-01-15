@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
     faiss::IndexACORNFlat hybrid_index_gamma1(d, M, 1, metadata_multi, M * 2);
     hybrid_index_gamma1.acorn.efSearch = efs; // default is 16 HybridHNSW.capp
 
-    { // populating the database
+    { // ====================Vectors====================
         std::cout << "====================Vectors====================\n"
                   << std::endl;
         // printf("====================Vectors====================\n");
@@ -262,7 +262,7 @@ int main(int argc, char* argv[]) {
         delete[] xb;
     }
 
-    // write hybrid index and partition indices to files
+    // ====================Write Index====================
     {
         std::cout << "====================Write Index====================\n"
                   << std::endl;
@@ -349,107 +349,7 @@ int main(int argc, char* argv[]) {
     printf("==============================================\n");
     double t1 = elapsed();
 
-    { // searching the base database
-        printf("====================HNSW INDEX====================\n");
-        printf("[%.3f s] Searching the %d nearest neighbors "
-               "of %ld vectors in the index, efsearch %d\n",
-               elapsed() - t0,
-               k,
-               nq,
-               base_index.hnsw.efSearch);
-
-        // 打印metadata_multi
-        // for (int i = 0; i < metadata_multi.size(); i++) {
-        //     printf("metadata_multi[%d]: ", i);
-        //     for (int val : metadata_multi[i]) {
-        //         printf("%d ", val);
-        //     }
-        //     printf("\n");
-        // }
-        std::vector<faiss::idx_t> nns(k * nq);
-        std::vector<float> dis(k * nq);
-
-        std::cout << "here1" << std::endl;
-        std::cout << "nn and dis size: " << nns.size() << " " << dis.size()
-                  << std::endl;
-
-        double t1 = elapsed();
-        base_index.search(nq, xq, k, dis.data(), nns.data());
-        double t2 = elapsed();
-
-        printf("[%.3f s] Query results (vector ids, then distances):\n",
-               elapsed() - t0);
-
-        // take max of 5 and nq
-        // int nq_print = std::min(5, (int)nq);
-        // for (int i = 0; i < nq_print; i++) {
-        //     printf("query %2d nn's: ", i);
-        //     for (int j = 0; j < k; j++) {
-        //         // printf("%7ld (%d) ", nns[j + i * k], metadata.size());
-        //         printf("%7ld (%d) ",
-        //                nns[j + i * k],
-        //                metadata_multi[nns[j + i * k]]);
-        //     }
-        //     printf("\n     dis: \t");
-        //     for (int j = 0; j < k; j++) {
-        //         printf("%7g ", dis[j + i * k]);
-        //     }
-        //     printf("\n");
-        //     // exit(0);
-        // }
-        int nq_print = std::min(100, (int)nq);
-        for (int i = 0; i < nq_print; i++) {
-            printf("my query %2d nn's: ", i);
-            for (int j = 0; j < k; j++) {
-                int row_idx = nns[j + i * k]; // 获取行索引
-                if (row_idx >= 0 && row_idx < metadata_multi.size()) {
-                    // 打印该行中的所有元素
-                    printf("%7ld (", nns[j + i * k]);
-                    for (int val : metadata_multi[row_idx]) {
-                        printf("%d ", val);
-                    }
-                    printf(") ");
-                } else {
-                    printf("Invalid row index ");
-                }
-            }
-            printf("\n     dis: \t");
-            for (int j = 0; j < k; j++) {
-                printf("%7g ", dis[j + i * k]);
-            }
-            printf("\n");
-        }
-
-        printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
-
-        // print number of distance computations
-        // printf("[%.3f s] *** Number of distance computations: %ld\n",
-        //    elapsed() - t0, base_index.ntotal * nq);
-        std::cout << "finished base index examples" << std::endl;
-    }
-
-    { // look at stats
-        // const faiss::HybridHNSWStats& stats = index.hnsw_stats;
-        const faiss::HNSWStats& stats = faiss::hnsw_stats;
-
-        std::cout
-                << "============= BASE HNSW QUERY PROFILING STATS ============="
-                << std::endl;
-        printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
-               elapsed() - t0,
-               k,
-               nq);
-        std::cout << "n1: " << stats.n1 << std::endl;
-        std::cout << "n2: " << stats.n2 << std::endl;
-        std::cout << "n3 (number distance comps at level 0): " << stats.n3
-                  << std::endl;
-        std::cout << "ndis: " << stats.ndis << std::endl;
-        std::cout << "nreorder: " << stats.nreorder << std::endl;
-        std::cout << "average distance computations per query: "
-                  << (float)stats.n3 / stats.n1 << std::endl;
-    }
-
-    { // searching the hybrid database
+    { // ==================== ACORN INDEX ====================
         printf("==================== ACORN INDEX ====================\n");
         printf("[%.3f s] Searching the %d nearest neighbors "
                "of %ld vectors in the index, efsearch %d\n",
@@ -557,17 +457,14 @@ int main(int argc, char* argv[]) {
         double recall = calculateRecall(sort_filter_all_cost, cost2, nq, k);
         std::cout << "Recall: " << recall << std::endl;
 
-        // 输出整体覆盖率
-        // float e_coverage_val = calculate_e_coverage(0, e_coverage);
-        // printf("e_coverage: %f\n", e_coverage_val);
+        // // 输出整体覆盖率
+        // // float e_coverage_val = calculate_e_coverage(0, e_coverage);
+        // // printf("e_coverage: %f\n", e_coverage_val);
 
         std::cout << "finished hybrid index examples" << std::endl;
     }
 
-    // check here
-
-    { // look at stats
-        // const faiss::HybridHNSWStats& stats = index.hnsw_stats;
+    { // ============= ACORN QUERY PROFILING STATS =============
         const faiss::ACORNStats& stats = faiss::acorn_stats;
 
         std::cout << "============= ACORN QUERY PROFILING STATS ============="
@@ -584,6 +481,102 @@ int main(int argc, char* argv[]) {
         std::cout << "nreorder: " << stats.nreorder << std::endl;
         // printf("average distance computations per query: %f\n",
         //        (float)stats.n3 / stats.n1);
+    }
+
+    { // ====================HNSW INDEX====================
+        printf("====================HNSW INDEX====================\n");
+        printf("[%.3f s] Searching the %d nearest neighbors "
+               "of %ld vectors in the index, efsearch %d\n",
+               elapsed() - t0,
+               k,
+               nq,
+               base_index.hnsw.efSearch);
+
+        std::vector<faiss::idx_t> nns(k * nq);
+        std::vector<float> dis(k * nq);
+        std::vector<float> cost(k * nq);
+
+        int query_id = 0; // 记录查询的次数
+
+        float* all_distances = new float[nq * N]; // 存储距离结果
+        std::vector<std::vector<float>> optional_coverage;
+        std::vector<std::vector<float>> all_cost;
+        all_distances = read_all_distances(
+                "../acorn_data/my_dis_of_every_query", nq, N);
+        optional_coverage = read_optional_coverage(
+                "../acorn_data/my_opattr_coverage", nq, N);
+        all_cost = read_all_cost("../acorn_data/my_cost", nq, N);
+
+        std::cout << "nn and dis size: " << nns.size() << " " << dis.size()
+                  << std::endl;
+
+        double t1 = elapsed();
+        // base_index.search(nq, xq, k, dis.data(), nns.data());
+        base_index.search_multi(
+                nq,
+                xq,
+                k,
+                cost.data(),
+                nns.data(),
+                aq_multi,
+                all_cost,
+                query_id,
+                metadata_multi);
+        double t2 = elapsed();
+
+        printf("[%.3f s] Query results (vector ids, then distances):\n",
+               elapsed() - t0);
+
+        int nq_print = std::min(100, (int)nq);
+        for (int i = 0; i < nq_print; i++) {
+            printf("my query %2d nn's: ", i);
+            for (int j = 0; j < k; j++) {
+                int row_idx = nns[j + i * k]; // 获取行索引
+                if (row_idx >= 0 && row_idx < metadata_multi.size()) {
+                    // 打印该行中的所有元素
+                    printf("%7ld (", nns[j + i * k]);
+                    for (int val : metadata_multi[row_idx]) {
+                        printf("%d ", val);
+                    }
+                    printf(") ");
+                } else {
+                    printf("Invalid row index ");
+                }
+            }
+            printf("\n     cost: \t");
+            for (int j = 0; j < k; j++) {
+                printf("%7g ", cost[j + i * k]);
+            }
+            printf("\n");
+        }
+
+        printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
+
+        std::vector<std::vector<float>> sort_filter_all_cost;
+        extract_and_sort_costs(
+                all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
+        double recall = calculateRecall(sort_filter_all_cost, cost, nq, k);
+        std::cout << "Recall: " << recall << std::endl;
+    }
+
+    { // ============= BASE HNSW QUERY PROFILING STATS =============
+        const faiss::HNSWStats& stats = faiss::hnsw_stats;
+
+        std::cout
+                << "============= BASE HNSW QUERY PROFILING STATS ============="
+                << std::endl;
+        printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
+               elapsed() - t0,
+               k,
+               nq);
+        std::cout << "n1: " << stats.n1 << std::endl;
+        std::cout << "n2: " << stats.n2 << std::endl;
+        std::cout << "n3 (number distance comps at level 0): " << stats.n3
+                  << std::endl;
+        std::cout << "ndis: " << stats.ndis << std::endl;
+        std::cout << "nreorder: " << stats.nreorder << std::endl;
+        std::cout << "average distance computations per query: "
+                  << (float)stats.n3 / stats.n1 << std::endl;
     }
 
     printf("[%.3f s] -----DONE-----\n", elapsed() - t0);

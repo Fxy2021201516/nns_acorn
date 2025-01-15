@@ -1342,6 +1342,7 @@ std::vector<std::vector<float>> read_all_cost(
     return all_cost;
 }
 
+// fxy_add
 bool binary_search(const std::vector<int>& vec, int target) {
     int left = 0;
     int right = vec.size() - 1;
@@ -1372,6 +1373,60 @@ bool has_required_attributes(
         }
     }
     return true;
+}
+
+// fxy_add 处理并提取符合要求的向量的dist，并排序后存入 sort_filter_all_distances
+void extract_and_sort_distances(
+        const float* all_distances,
+        const std::vector<std::vector<int>>& aq_multi,
+        const std::vector<std::vector<int>>& metadata_multi,
+        int nq, // 查询数量
+        int N,  // 向量数量
+        std::vector<std::vector<float>>& sort_filter_all_distances) {
+    // 遍历每个查询
+    std::cout << "enter extract_and_sort_distances" << std::endl;
+    int query_count = aq_multi.size();
+    std::cout << "query_count: " << query_count << std::endl;
+    for (size_t query_index = 0; query_index < query_count; query_index++) {
+        // 获取当前查询的必需属性
+        const std::vector<int>& required_attributes = aq_multi[query_index];
+
+        // 临时容器，用来存储符合条件的向量的索引和对应的距离
+        std::vector<std::pair<int, float>> valid_vectors;
+
+        // 遍历所有向量，检查是否符合当前查询的属性要求
+        int vector_count = metadata_multi.size();
+        for (size_t vector_index = 0; vector_index < vector_count; vector_index++) {
+            const std::vector<int>& vector_attributes = metadata_multi[vector_index];
+
+            // 如果当前向量的属性符合要求
+            if (has_required_attributes(vector_attributes, required_attributes)) {
+                // 计算距离在 all_distances 中的索引
+                int distance_index = query_index * N + vector_index;
+
+                // 将符合条件的向量的索引和对应的距离保存到 valid_vectors 中
+                valid_vectors.push_back(
+                    {static_cast<int>(vector_index), all_distances[distance_index]});
+            }
+        }
+
+        // 按照距离对符合条件的向量进行排序（升序）
+        std::sort(
+            valid_vectors.begin(),
+            valid_vectors.end(),
+            [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
+                return a.second < b.second; // 比较距离，升序排序
+            });
+
+        // 创建一个存储排序后距离的数组
+        std::vector<float> sorted_distances;
+        for (const auto& vec : valid_vectors) {
+            sorted_distances.push_back(vec.second); // 只保存距离
+        }
+
+        // 将排序后的距离添加到 sort_filter_all_distances 中
+        sort_filter_all_distances.push_back(sorted_distances);
+    }
 }
 
 // fxy_add 处理并提取符合要求的向量的 cost，并排序后存入 sort_filter_all_cost
@@ -1425,6 +1480,19 @@ void extract_and_sort_costs(
 
         // 将排序后的向量索引添加到 sort_filter_all_cost 中
         sort_filter_all_cost.push_back(sorted_costs);
+    }
+}
+
+// fxy_add 处理cost：排序后存入 sort_all_cost
+void sort_costs(
+        const std::vector<std::vector<float>>& all_cost,
+        std::vector<std::vector<float>>& sort_all_cost) {
+    // 遍历每个查询
+    for (const auto& cost : all_cost) {
+        // 使用 std::sort 对每个查询的 cost 进行排序
+        std::vector<float> sorted_cost = cost;
+        std::sort(sorted_cost.begin(), sorted_cost.end());
+        sort_all_cost.push_back(sorted_cost);
     }
 }
 

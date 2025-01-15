@@ -22,6 +22,7 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+// #include "utils.cpp"
 /*******************************************************
  * Added for debugging
  *******************************************************/
@@ -638,7 +639,7 @@ void ACORN::shrink_neighbor_list(
 }
 
 // fxy_add
-bool binary_search(const std::vector<int>& vec, int target) {
+bool acorn_binary_search(const std::vector<int>& vec, int target) {
     int left = 0;
     int right = vec.size() - 1;
 
@@ -663,7 +664,8 @@ bool ACORN::check_metadata(
         int query_idx) const {
     int len = required[query_idx].size();
     for (int i = 0; i < len; i++) {
-        if (binary_search(metadata_multi[check_v], required[query_idx][i])) {
+        if (acorn_binary_search(
+                    metadata_multi[check_v], required[query_idx][i])) {
             return true;
         }
     }
@@ -677,7 +679,8 @@ bool ACORN::check_metadata_all(
     // std::cout << "check_metadata_all" << std::endl;
     int len = required[query_idx].size();
     for (int i = 0; i < len; i++) {
-        if (!binary_search(metadata_multi[check_v], required[query_idx][i])) {
+        if (!acorn_binary_search(
+                    metadata_multi[check_v], required[query_idx][i])) {
             return false;
         }
     }
@@ -720,7 +723,7 @@ bool ACORN::check_metadata_optional(
     // 遍历check_v的所有属性
     for (int attr : check_v_attr) {
         // if (attr_find(oaq_multi[query_idx], attr)) {
-        if (binary_search(oaq_multi[query_idx], attr)) {
+        if (acorn_binary_search(oaq_multi[query_idx], attr)) {
             is_helpful = true;
         }
     }
@@ -782,7 +785,6 @@ using NodeDistFarther = ACORN::NodeDistFarther;
 /**************************************************************
  * Addition subroutines
  **************************************************************/
-
 /// remove neighbors from the list to make it smaller than max_size
 // old:int q_attr,
 void shrink_neighbor_list(

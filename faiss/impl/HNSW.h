@@ -122,7 +122,6 @@ struct HNSW {
     /// for all levels. this is where all storage goes.
     std::vector<storage_idx_t> neighbors;
 
-
     // this version of neighbors list contains metadata
     /// neighbors[offsets[i]:offsets[i+1]] is the list of neighbors of vector i
     /// for all levels. this is where all storage goes.
@@ -183,6 +182,10 @@ struct HNSW {
     /// only mandatory parameter: nb of neighbors
     // explicit HNSW(int M = 32);
     explicit HNSW(int M = 32, int gamma = 1);
+    explicit HNSW(
+            std::vector<std::vector<int>>& metadata_multi,
+            int M = 32,
+            int gamma = 1);
 
     /// pick a random level for a new point
     int random_level();
@@ -219,7 +222,7 @@ struct HNSW {
             std::vector<omp_lock_t>& locks,
             VisitedTable& vt);
 
-      /** add point pt_id on all levels <= pt_level and build the link
+    /** add point pt_id on all levels <= pt_level and build the link
      * structure for them. */
     void hybrid_add_with_locks(
             DistanceComputer& ptdis,
@@ -236,6 +239,17 @@ struct HNSW {
             float* D,
             VisitedTable& vt,
             const SearchParametersHNSW* params = nullptr) const;
+    HNSWStats search_multi(
+            DistanceComputer& qdis,
+            int k,
+            idx_t* I,
+            float* C,
+            VisitedTable& vt,
+            const std::vector<std::vector<int>> aq_multi,
+            std::vector<std::vector<float>>& all_cost,
+            int query_id,
+            const std::vector<std::vector<int>>& metadata_multi ,
+            const SearchParametersHNSW* params = nullptr) const;
 
     /// search only in level 0 from a given vertex
     void search_level_0(
@@ -249,15 +263,20 @@ struct HNSW {
             int search_type,
             HNSWStats& search_stats,
             VisitedTable& vt) const;
-    
+
     /**************************************************************
-    * HYBRID INDEX
-    **************************************************************/
+     * HYBRID INDEX
+     **************************************************************/
     /// search interface for 1 point, single thread
-    int* metadata;
+    // int* metadata;
+    std::vector<int>& metadata;
+    const std::vector<std::vector<int>>& metadata_multi;
     std::vector<std::string> metadata_strings;
 
-    
+    std::vector<int> empty_metadata; // 空的 std::vector<int>
+    std::vector<std::vector<int>>
+            empty_metadata_multi; // 空的 std::vector<std::vector<int>>
+
     HNSWStats hybrid_search(
             DistanceComputer& qdis,
             int k,
@@ -282,8 +301,8 @@ struct HNSW {
     void hybrid_print_neighbor_stats(int level) const;
     void hybrid_print_edges(int level) const;
 
-    void print_neighbor_stats(bool print_edges, bool is_hybrid) const; //overloaded
-
+    void print_neighbor_stats(bool print_edges, bool is_hybrid)
+            const; // overloaded
 
     int prepare_level_tab(size_t n, bool preset_levels = false);
 
@@ -291,7 +310,8 @@ struct HNSW {
             DistanceComputer& qdis,
             std::priority_queue<NodeDistFarther>& input,
             std::vector<NodeDistFarther>& output,
-            int max_size, int gamma = 1);
+            int max_size,
+            int gamma = 1);
 };
 
 struct HNSWStats {
