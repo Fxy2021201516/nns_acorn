@@ -111,6 +111,9 @@ int main(int argc, char* argv[]) {
 
         M_beta = atoi(argv[5]);
         printf("M_beta: %d\n", M_beta);
+
+        efs = atoi(argv[6]); 
+        printf("efs: %d\n", efs);
     }
 
     // load metadata
@@ -443,7 +446,10 @@ int main(int argc, char* argv[]) {
             printf("\n");
         }
 
-        printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2_x - t1_x);
+        //printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2_x - t1_x);
+        double total_time = t2_x - t1_x;
+        double qps = nq / total_time;
+        printf("[%.3f s] *** Query time: %f seconds, QPS: %f  (ACORN)\n",elapsed() - t0, total_time, qps);
 
         std::vector<std::vector<float>> sort_filter_all_cost;
         extract_and_sort_costs(
@@ -455,11 +461,7 @@ int main(int argc, char* argv[]) {
                     sort_filter_all_cost, "../acorn_data/my_cost_sort_filter");
         }
         double recall = calculateRecall(sort_filter_all_cost, cost2, nq, k);
-        std::cout << "Recall: " << recall << std::endl;
-
-        // // 输出整体覆盖率
-        // // float e_coverage_val = calculate_e_coverage(0, e_coverage);
-        // // printf("e_coverage: %f\n", e_coverage_val);
+        std::cout << "Recall: " << recall << "(ACORN)" << std::endl;
 
         std::cout << "finished hybrid index examples" << std::endl;
     }
@@ -550,13 +552,16 @@ int main(int argc, char* argv[]) {
             printf("\n");
         }
 
-        printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
+        //printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
+        double total_time = t2 - t1;
+        double qps = nq / total_time;
+        printf("[%.3f s] *** Query time: %f seconds, QPS: %f (HNSW) \n", elapsed() - t0, total_time, qps);
 
         std::vector<std::vector<float>> sort_filter_all_cost;
         extract_and_sort_costs(
                 all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
         double recall = calculateRecall(sort_filter_all_cost, cost, nq, k);
-        std::cout << "Recall: " << recall << std::endl;
+        std::cout << "Recall: " << recall <<"(HNSW)"<< std::endl;
     }
 
     { // ============= BASE HNSW QUERY PROFILING STATS =============

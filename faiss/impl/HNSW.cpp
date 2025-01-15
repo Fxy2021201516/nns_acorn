@@ -1723,8 +1723,6 @@ int search_from_candidates_multi(
 
                 // 只在添加结果时检查条件
                 bool if_v1_pass =check_metadata_all(v1, aq_multi, query_id,metadata_multi);
-                //bool if_v1_pass = true;
-                // std::cout << "if_v1_pass: " << if_v1_pass << std::endl;
                 if (if_v1_pass) {
                     if (!sel || sel->is_member(v1)) {
                         if (nres < k) {
