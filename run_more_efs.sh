@@ -36,9 +36,8 @@ mkdir -p ${parent_dir}
 summary_file="${parent_dir}/summary_all_efs.txt"
 echo "efs,QPS_HNSW,Recall_HNSW,QPS_ACORN,Recall_ACORN" > ${summary_file}
 
-# 循环测试 efs 值，从 10 到 1000，步长为 10
-# 循环测试 efs 值，从 10 到 1000，步长为 10
-for efs in $(seq 10 10 1000); do
+# 循环测试 efs 值
+for efs in $(seq 810 10 1000); do
     dir=${parent_dir}/MB${M_beta}_efs${efs}  # 在目录名中加入 efs 值
     mkdir -p ${dir}                          
 
