@@ -22,179 +22,189 @@
 #include <sys/time.h>
 #include <iostream>
 
-namespace faiss {
+namespace faiss
+{
 
-struct IndexACORN;
+   struct IndexACORN;
 
-/** The ACORN index is a normal random-access index with a ACORN
- * link structure built on top */
+   /** The ACORN index is a normal random-access index with a ACORN
+    * link structure built on top */
 
-struct IndexACORN : Index {
-    typedef ACORN::storage_idx_t storage_idx_t;
+   struct IndexACORN : Index
+   {
+      typedef ACORN::storage_idx_t storage_idx_t;
 
-    // the link strcuture
-    ACORN acorn; // TODO change to hybrid
+      // the link strcuture
+      ACORN acorn; // TODO change to hybrid
 
-    // the sequential storage
-    bool own_fields;
-    Index* storage;
+      // the sequential storage
+      bool own_fields;
+      Index *storage;
 
-    //     ReconstructFromNeighbors* reconstruct_from_neighbors;
+      //     ReconstructFromNeighbors* reconstruct_from_neighbors;
 
-    explicit IndexACORN(
-            int d,
-            int M,
-            int gamma,
-            std::vector<int>& metadata,
-            int M_beta,
-            MetricType metric = METRIC_L2); // defaults d = 0, M=32, gamma=1
-    explicit IndexACORN(
-            Index* storage,
-            int M,
-            int gamma,
-            std::vector<int>& metadata,
-            int M_beta);
-    //     explicit IndexACORN(); // TODO check this is right
+      explicit IndexACORN(
+          int d,
+          int M,
+          int gamma,
+          std::vector<int> &metadata,
+          int M_beta,
+          MetricType metric = METRIC_L2); // defaults d = 0, M=32, gamma=1
+      explicit IndexACORN(
+          Index *storage,
+          int M,
+          int gamma,
+          std::vector<int> &metadata,
+          int M_beta);
+      //     explicit IndexACORN(); // TODO check this is right
 
-    explicit IndexACORN(
-            int d,
-            int M,
-            int gamma,
-            std::vector<std::vector<int>>& metadata,
-            int M_beta,
-            MetricType metric = METRIC_L2); // defaults d = 0, M=32, gamma=1
-    explicit IndexACORN(
-            Index* storage,
-            int M,
-            int gamma,
-            std::vector<std::vector<int>>& metadata,
-            int M_beta);
+      explicit IndexACORN(
+          int d,
+          int M,
+          int gamma,
+          std::vector<std::vector<int>> &metadata,
+          int M_beta,
+          MetricType metric = METRIC_L2); // defaults d = 0, M=32, gamma=1
+      explicit IndexACORN(
+          Index *storage,
+          int M,
+          int gamma,
+          std::vector<std::vector<int>> &metadata,
+          int M_beta);
 
-    ~IndexACORN() override;
+      ~IndexACORN() override;
 
-    // add n vectors of dimension d to the index, x is the matrix of vectors
-    void add(idx_t n, const float* x) override;
+      // add n vectors of dimension d to the index, x is the matrix of vectors
+      void add(idx_t n, const float *x) override;
 
-    /// Trains the storage if needed
-    void train(idx_t n, const float* x) override;
+      /// Trains the storage if needed
+      void train(idx_t n, const float *x) override;
 
-    /// entry point for search
-    void search(
-            idx_t n,
-            const float* x,
-            idx_t k,
-            float* distances,
-            idx_t* labels,
-            const SearchParameters* params = nullptr) const override;
+      /// entry point for search
+      void search(
+          idx_t n,
+          const float *x,
+          idx_t k,
+          float *distances,
+          idx_t *labels,
+          const SearchParameters *params = nullptr) const override;
 
-    // search for metadata
-    // this doesn't override normal search since definition has a filter param -
-    // search is overloaded
-    void search(
-            idx_t n,
-            const float* x,
-            idx_t k,
-            float* distances,
-            idx_t* labels,
-            char* filter_id_map,
-            const SearchParameters* params = nullptr) const;
+      // search for metadata
+      // this doesn't override normal search since definition has a filter param -
+      // search is overloaded
+      void search(
+          idx_t n,
+          const float *x,
+          idx_t k,
+          float *distances,
+          idx_t *labels,
+          char *filter_id_map,
+          const SearchParameters *params = nullptr) const;
 
-    void search_multi(
-            idx_t n,
-            const float* x,
-            idx_t k,
-            float* costs,
-            idx_t* labels,
-            const std::vector<std::vector<int>> aq_multi,
-            const std::vector<std::vector<int>> oaq_multi,
-            std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            std::vector<std::vector<float>>& all_cost,
-            int query_id,
-            const SearchParameters* params_in = nullptr) const;
-    void calculate_distances_multi(
-            idx_t nq,         // 查询的数量
-            const float* xq,  // 查询向量数据
-            idx_t k,          // 每个查询要返回的最相似向量数量
-            float* distances, // 存储每个查询的距离结果
-            idx_t* nns,       // 存储每个查询的邻居（索引）
-            int query_id,     // 查询 ID
-            const SearchParameters* params_in = nullptr // 搜索参数
-    ) const;
+      void search_multi(
+          idx_t n,
+          const float *x,
+          idx_t k,
+          float *costs,
+          idx_t *labels,
+          const std::vector<std::vector<int>> aq_multi,
+          const std::vector<std::vector<int>> oaq_multi,
+          std::vector<std::vector<std::unordered_set<int>>> &e_coverage,
+          std::vector<std::vector<float>> &all_cost,
+          int query_id,
+          bool dis_or_cost_in_search,
+          const SearchParameters *params_in = nullptr) const;
 
-    void reconstruct(idx_t key, float* recons) const override;
+      void calculate_distances_multi(
+          idx_t nq,         // 查询的数量
+          const float *xq,  // 查询向量数据
+          idx_t k,          // 每个查询要返回的最相似向量数量
+          float *distances, // 存储每个查询的距离结果
+          idx_t *nns,       // 存储每个查询的邻居（索引）
+          int query_id,     // 查询 ID
+          const SearchParameters *params_in = nullptr) const;
 
-    void reset() override;
+      void reconstruct(idx_t key, float *recons) const override;
 
-    // added for debugging
-    void printStats(
-            bool print_edge_list = false,
-            bool print_filtered_edge_lists = false,
-            int filter = -1,
-            Operation op = EQUAL);
+      void reset() override;
+
+      // added for debugging
+      void printStats(
+          bool print_edge_list = false,
+          bool print_filtered_edge_lists = false,
+          int filter = -1,
+          Operation op = EQUAL);
 
    private:
-    const int debugFlag = 0;
+      const int debugFlag = 0;
 
-    void debugTime() {
-        if (debugFlag) {
+      void debugTime()
+      {
+         if (debugFlag)
+         {
             struct timeval tval;
             gettimeofday(&tval, NULL);
-            struct tm* tm_info = localtime(&tval.tv_sec);
+            struct tm *tm_info = localtime(&tval.tv_sec);
             char timeBuff[25] = "";
             strftime(timeBuff, 25, "%H:%M:%S", tm_info);
             char timeBuffWithMilli[50] = "";
             sprintf(timeBuffWithMilli, "%s.%06ld ", timeBuff, tval.tv_usec);
             std::string timestamp(timeBuffWithMilli);
             std::cout << timestamp << std::flush;
-        }
-    }
+         }
+      }
 
 // needs atleast 2 args always
 //   alt debugFlag = 1 // fprintf(stderr, fmt, __VA_ARGS__);
-#define debug(fmt, ...)                             \
-    do {                                            \
-        if (debugFlag == 1) {                       \
-            fprintf(stdout, "--" fmt, __VA_ARGS__); \
-        }                                           \
-        if (debugFlag == 2) {                       \
-            debugTime();                            \
-            fprintf(stdout,                         \
-                    "%s:%d:%s(): " fmt,             \
-                    __FILE__,                       \
-                    __LINE__,                       \
-                    __func__,                       \
-                    __VA_ARGS__);                   \
-        }                                           \
-    } while (0)
+#define debug(fmt, ...)                          \
+   do                                            \
+   {                                             \
+      if (debugFlag == 1)                        \
+      {                                          \
+         fprintf(stdout, "--" fmt, __VA_ARGS__); \
+      }                                          \
+      if (debugFlag == 2)                        \
+      {                                          \
+         debugTime();                            \
+         fprintf(stdout,                         \
+                 "%s:%d:%s(): " fmt,             \
+                 __FILE__,                       \
+                 __LINE__,                       \
+                 __func__,                       \
+                 __VA_ARGS__);                   \
+      }                                          \
+   } while (0)
 
-    double elapsed() {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        return tv.tv_sec + tv.tv_usec * 1e-6;
-    }
-};
+      double elapsed()
+      {
+         struct timeval tv;
+         gettimeofday(&tv, NULL);
+         return tv.tv_sec + tv.tv_usec * 1e-6;
+      }
+   };
 
-/** Flat index topped with with a ACORN structure to access elements
- *  more efficiently.
- */
+   /** Flat index topped with with a ACORN structure to access elements
+    *  more efficiently.
+    */
 
-struct IndexACORNFlat : IndexACORN {
-    IndexACORNFlat();
-    IndexACORNFlat(
-            int d,
-            int M,
-            int gamma,
-            std::vector<int>& metadata,
-            int M_beta,
-            MetricType metric = METRIC_L2);
-    // fxy_add
-    IndexACORNFlat(
-            int d,
-            int M,
-            int gamma,
-            std::vector<std::vector<int>>& metadata,
-            int M_beta,
-            MetricType metric = METRIC_L2);
-};
+   struct IndexACORNFlat : IndexACORN
+   {
+      IndexACORNFlat();
+      IndexACORNFlat(
+          int d,
+          int M,
+          int gamma,
+          std::vector<int> &metadata,
+          int M_beta,
+          MetricType metric = METRIC_L2);
+      // fxy_add
+      IndexACORNFlat(
+          int d,
+          int M,
+          int gamma,
+          std::vector<std::vector<int>> &metadata,
+          int M_beta,
+          MetricType metric = METRIC_L2);
+   };
 
 } // namespace faiss

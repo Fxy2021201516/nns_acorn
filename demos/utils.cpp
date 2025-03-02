@@ -1212,8 +1212,8 @@ std::vector<std::vector<float>> read_optional_coverage(
 
 // fxy_add 计算成本并保存到 JSON 文件
 void calculate_and_save_cost(
-        const std::string& distance_folder, // 存储距离数据的文件夹路径
-        const std::string& coverage_folder, // 存储覆盖率数据的文件夹路径
+        const std::string& distance_folder,        // 存储距离数据的文件夹路径
+        const std::string& coverage_folder,        // 存储覆盖率数据的文件夹路径
         const std::string& output_folder,          // 输出文件夹路径
         std::vector<std::vector<float>>& all_cost, // 存储所有的 cost
         float alpha) {                             // alpha 值
@@ -1375,7 +1375,8 @@ bool has_required_attributes(
     return true;
 }
 
-// fxy_add 处理并提取符合要求的向量的dist，并排序后存入 sort_filter_all_distances
+// fxy_add 处理并提取符合要求的向量的dist，并排序后存入
+// sort_filter_all_distances
 void extract_and_sort_distances(
         const float* all_distances,
         const std::vector<std::vector<int>>& aq_multi,
@@ -1396,27 +1397,32 @@ void extract_and_sort_distances(
 
         // 遍历所有向量，检查是否符合当前查询的属性要求
         int vector_count = metadata_multi.size();
-        for (size_t vector_index = 0; vector_index < vector_count; vector_index++) {
-            const std::vector<int>& vector_attributes = metadata_multi[vector_index];
+        for (size_t vector_index = 0; vector_index < vector_count;
+             vector_index++) {
+            const std::vector<int>& vector_attributes =
+                    metadata_multi[vector_index];
 
             // 如果当前向量的属性符合要求
-            if (has_required_attributes(vector_attributes, required_attributes)) {
+            if (has_required_attributes(
+                        vector_attributes, required_attributes)) {
                 // 计算距离在 all_distances 中的索引
                 int distance_index = query_index * N + vector_index;
 
                 // 将符合条件的向量的索引和对应的距离保存到 valid_vectors 中
                 valid_vectors.push_back(
-                    {static_cast<int>(vector_index), all_distances[distance_index]});
+                        {static_cast<int>(vector_index),
+                         all_distances[distance_index]});
             }
         }
 
         // 按照距离对符合条件的向量进行排序（升序）
         std::sort(
-            valid_vectors.begin(),
-            valid_vectors.end(),
-            [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
-                return a.second < b.second; // 比较距离，升序排序
-            });
+                valid_vectors.begin(),
+                valid_vectors.end(),
+                [](const std::pair<int, float>& a,
+                   const std::pair<int, float>& b) {
+                    return a.second < b.second; // 比较距离，升序排序
+                });
 
         // 创建一个存储排序后距离的数组
         std::vector<float> sorted_distances;
@@ -1475,7 +1481,7 @@ void extract_and_sort_costs(
         // 创建一个存储排序后向量索引的数组
         std::vector<float> sorted_costs;
         for (const auto& vec : valid_vectors) {
-            sorted_costs.push_back(vec.second); // 只保存向量的索引
+            sorted_costs.push_back(vec.second); // 只保存 cost
         }
 
         // 将排序后的向量索引添加到 sort_filter_all_cost 中
@@ -1512,7 +1518,7 @@ void saveAllCostToJSON(
 
         // 将数据写入 JSON 文件
         json query_json = all_cost[i]; // 自动将 std::vector 转换为 JSON 数组
-        file << query_json.dump(4); // 格式化输出，缩进为 4 空格
+        file << query_json.dump(4);    // 格式化输出，缩进为 4 空格
         file.close();
     }
 }

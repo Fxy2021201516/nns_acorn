@@ -33,6 +33,7 @@ gamma=12
 dataset=sift1M
 M=32 
 M_beta=64
+efs=1000
 
 
 parent_dir=../acorn_data/${now}_${dataset}  
@@ -44,4 +45,4 @@ mkdir -p ${dir}
 TZ='America/Los_Angeles' date +"Start time: %H:%M" &>> ${dir}/summary_sift_n=${N}_gamma=${gamma}.txt
 
 
-./build/demos/test_acorn $N $gamma $dataset $M $M_beta  &>> ${dir}/summary_sift_n=${N}_gamma=${gamma}.txt
+./build/demos/test_acorn $N $gamma $dataset $M $M_beta $efs  &>> ${dir}/summary_sift_n=${N}_gamma=${gamma}.txt

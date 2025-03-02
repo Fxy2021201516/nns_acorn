@@ -26,25 +26,28 @@
 // // for convenience
 // using json = nlohmann::json;
 
-namespace faiss {
+namespace faiss
+{
 
-struct VisitedTable;
-struct DistanceComputer; // from AuxIndexStructures
-struct ACORNStats;
+  struct VisitedTable;
+  struct DistanceComputer; // from AuxIndexStructures
+  struct ACORNStats;
 
-struct SearchParametersACORN : SearchParameters {
+  struct SearchParametersACORN : SearchParameters
+  {
     int efSearch = 16;
     bool check_relative_distance = true;
 
     ~SearchParametersACORN() {}
-};
+  };
 
-struct ACORN {
+  struct ACORN
+  {
     /// internal storage of vectors (32 bits: this is expensive)
     using storage_idx_t = int32_t;
 
     typedef std::pair<float, storage_idx_t>
-            Node; // for heaps with distance, storage
+        Node; // for heaps with distance, storage
 
     // stores storage_id of a node 别名，表示一个邻居节点，实际上就是一个
     // `storage_idx_t` 类型的索引。
@@ -52,47 +55,52 @@ struct ACORN {
 
     /** Heap structure that allows fast
      */
-    struct MinimaxHeap {
-        int n;
-        int k;
-        int nvalid;
+    struct MinimaxHeap
+    {
+      int n;
+      int k;
+      int nvalid;
 
-        std::vector<storage_idx_t> ids;
-        std::vector<float> dis;
-        typedef faiss::CMax<float, storage_idx_t> HC;
+      std::vector<storage_idx_t> ids;
+      std::vector<float> dis;
+      typedef faiss::CMax<float, storage_idx_t> HC;
 
-        explicit MinimaxHeap(int n) : n(n), k(0), nvalid(0), ids(n), dis(n) {}
+      explicit MinimaxHeap(int n) : n(n), k(0), nvalid(0), ids(n), dis(n) {}
 
-        void push(storage_idx_t i, float v);
+      void push(storage_idx_t i, float v);
 
-        float max() const;
+      float max() const;
 
-        int size() const;
+      int size() const;
 
-        void clear();
+      void clear();
 
-        int pop_min(float* vmin_out = nullptr);
+      int pop_min(float *vmin_out = nullptr);
 
-        int count_below(float thresh); // 计算堆中小于某个距离阈值的元素数量
+      int count_below(float thresh); // 计算堆中小于某个距离阈值的元素数量
     };
 
     /// to sort pairs of (id, distance) from nearest to fathest or the reverse
-    struct NodeDistCloser { // 按照距离升序排列节点，适用于找最近邻
-        float d;
-        int id;
-        NodeDistCloser(float d, int id) : d(d), id(id) {}
-        bool operator<(const NodeDistCloser& obj1) const {
-            return d < obj1.d;
-        }
+    struct NodeDistCloser
+    { // 按照距离升序排列节点，适用于找最近邻
+      float d;
+      int id;
+      NodeDistCloser(float d, int id) : d(d), id(id) {}
+      bool operator<(const NodeDistCloser &obj1) const
+      {
+        return d < obj1.d;
+      }
     };
 
-    struct NodeDistFarther { // 按照距离降序排列节点
-        float d;
-        int id;
-        NodeDistFarther(float d, int id) : d(d), id(id) {}
-        bool operator<(const NodeDistFarther& obj1) const {
-            return d > obj1.d;
-        }
+    struct NodeDistFarther
+    { // 按照距离降序排列节点
+      float d;
+      int id;
+      NodeDistFarther(float d, int id) : d(d), id(id) {}
+      bool operator<(const NodeDistFarther &obj1) const
+      {
+        return d > obj1.d;
+      }
     };
 
     /// assignment probability to each layer (sum=1)每一层的分配概率
@@ -169,18 +177,18 @@ struct ACORN {
     int cum_nb_neighbors(int layer_no) const;
 
     /// range of entries in the neighbors table of vertex no at layer_no
-    void neighbor_range(idx_t no, int layer_no, size_t* begin, size_t* end)
-            const;
+    void neighbor_range(idx_t no, int layer_no, size_t *begin, size_t *end)
+        const;
 
     /// only mandatory parameter: nb of neighbors
     // explicit HNSW(int M = 32);
 
-    explicit ACORN(int M, int gamma, std::vector<int>& metadata, int M_beta);
+    explicit ACORN(int M, int gamma, std::vector<int> &metadata, int M_beta);
     explicit ACORN(
-            int M,
-            int gamma,
-            std::vector<std::vector<int>>& metadata_multi,
-            int M_beta);
+        int M,
+        int gamma,
+        std::vector<std::vector<int>> &metadata_multi,
+        int M_beta);
 
     /// pick a random level for a new point
     int random_level();
@@ -189,14 +197,14 @@ struct ACORN {
     void fill_with_random_links(size_t n);
 
     void add_links_starting_from(
-            DistanceComputer& ptdis,
-            storage_idx_t pt_id,
-            storage_idx_t nearest,
-            float d_nearest,
-            int level,
-            omp_lock_t* locks,
-            VisitedTable& vt,
-            std::vector<storage_idx_t> ep_per_level = {});
+        DistanceComputer &ptdis,
+        storage_idx_t pt_id,
+        storage_idx_t nearest,
+        float d_nearest,
+        int level,
+        omp_lock_t *locks,
+        VisitedTable &vt,
+        std::vector<storage_idx_t> ep_per_level = {});
 
     // void hybrid_add_links_starting_from(
     //         DistanceComputer& ptdis,
@@ -211,92 +219,93 @@ struct ACORN {
     /** add point pt_id on all levels <= pt_level and build the link
      * structure for them. */
     void add_with_locks(
-            DistanceComputer& ptdis,
-            int pt_level,
-            int pt_id,
-            std::vector<omp_lock_t>& locks,
-            VisitedTable& vt);
+        DistanceComputer &ptdis,
+        int pt_level,
+        int pt_id,
+        std::vector<omp_lock_t> &locks,
+        VisitedTable &vt);
 
     /// search interface for 1 point, single thread
     ACORNStats search(
-            DistanceComputer& qdis,
-            int k,
-            idx_t* I,
-            float* D,
-            VisitedTable& vt,
-            const SearchParametersACORN* params = nullptr) const;
+        DistanceComputer &qdis,
+        int k,
+        idx_t *I,
+        float *D,
+        VisitedTable &vt,
+        const SearchParametersACORN *params = nullptr) const;
 
     /**************************************************************
      * ACORN HYBRID INDEX
      **************************************************************/
     /// search interface for 1 point, single thread
     // const int* metadata;
-    const std::vector<int>& metadata;
-    const std::vector<std::vector<int>>& metadata_multi;
+    const std::vector<int> &metadata;
+    const std::vector<std::vector<int>> &metadata_multi;
     std::vector<std::string> metadata_strings;
 
     std::vector<int> empty_metadata; // 空的 std::vector<int>
     std::vector<std::vector<int>>
-            empty_metadata_multi; // 空的 std::vector<std::vector<int>>
+        empty_metadata_multi; // 空的 std::vector<std::vector<int>>
 
     // std::vector<std::string> metadata_strings_vec;
 
     ACORNStats hybrid_search(
-            DistanceComputer& qdis,
-            int k,
-            idx_t* I,
-            float* D,
-            VisitedTable& vt,
-            char* filter_map,
-            // int filter,
-            // Operation op,
-            // std::string regex,
-            const SearchParametersACORN* params = nullptr) const;
+        DistanceComputer &qdis,
+        int k,
+        idx_t *I,
+        float *D,
+        VisitedTable &vt,
+        char *filter_map,
+        // int filter,
+        // Operation op,
+        // std::string regex,
+        const SearchParametersACORN *params = nullptr) const;
 
     ACORNStats hybrid_search_multi(
-            DistanceComputer& qdis,
-            int k,
-            idx_t* I,
-            float* D,
-            VisitedTable& vt,
-            const std::vector<std::vector<int>> aq_multi,
-            const std::vector<std::vector<int>> oaq_multi,
-            std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            std::vector<std::vector<float>>& all_cost,
-            int query_id,
-            const SearchParametersACORN* params) const;
+        DistanceComputer &qdis,
+        int k,
+        idx_t *I,
+        float *D,
+        VisitedTable &vt,
+        const std::vector<std::vector<int>> aq_multi,
+        const std::vector<std::vector<int>> oaq_multi,
+        std::vector<std::vector<std::unordered_set<int>>> &e_coverage,
+        std::vector<std::vector<float>> &all_cost,
+        int query_id,
+        bool dist_or_cost_in_search,
+        const SearchParametersACORN *params) const;
 
     // 检测某个向量的属性是否包含一个required属性
     bool check_metadata(
-            int check_v,
-            std::vector<std::vector<int>> required,
-            int query_idx) const;
+        int check_v,
+        std::vector<std::vector<int>> required,
+        int query_idx) const;
 
     // 检测某个向量的属性是否包含所有required属性
     bool check_metadata_all(
-            int check_v,
-            std::vector<std::vector<int>> required,
-            int query_idx) const;
+        int check_v,
+        std::vector<std::vector<int>> required,
+        int query_idx) const;
 
     // 检查某个向量是否对整体覆盖度有帮助，并更新覆盖信息
     bool check_metadata_optional(
-            int check_v,
-            std::vector<std::vector<int>> oaq_multi,
-            // std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            int query_idx) const;
+        int check_v,
+        std::vector<std::vector<int>> oaq_multi,
+        // std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
+        int query_idx) const;
     void add_to_e_coverage(
-            int add_v,
-            std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            int query_idx) const;
+        int add_v,
+        std::vector<std::vector<std::unordered_set<int>>> &e_coverage,
+        int query_idx) const;
     void sub_to_e_coverage(
-            int sub_v,
-            std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            int query_idx) const;
+        int sub_v,
+        std::vector<std::vector<std::unordered_set<int>>> &e_coverage,
+        int query_idx) const;
     float cal_optional_coverage(
-            int check_v,
-            std::vector<std::vector<int>> oaq_multi,
-            std::vector<std::vector<std::unordered_set<int>>>& e_coverage,
-            int query_idx) const;
+        int check_v,
+        std::vector<std::vector<int>> oaq_multi,
+        std::vector<std::vector<std::unordered_set<int>>> &e_coverage,
+        int query_idx) const;
 
     /**************************************************************
     **************************************************************/
@@ -310,24 +319,25 @@ struct ACORN {
     // void write_filtered_edges_to_json(int level, int filter) const;
     void print_edges_filtered(int level, int filter, Operation op) const;
     void print_neighbor_stats(
-            bool edge_list,
-            bool filtered_edge_list = false,
-            int filter = -1,
-            Operation op = EQUAL) const; // overloaded
+        bool edge_list,
+        bool filtered_edge_list = false,
+        int filter = -1,
+        Operation op = EQUAL) const; // overloaded
 
     int prepare_level_tab(size_t n, bool preset_levels = false);
 
     void shrink_neighbor_list( // 缩小邻居列表，去除不必要的元素
-            DistanceComputer& qdis,
-            std::priority_queue<NodeDistFarther>& input,
-            std::vector<NodeDistFarther>& output,
-            int max_size,
-            int gamma = 1,
-            storage_idx_t q_id = 0,
-            std::vector<int> q_attr = {});
-};
+        DistanceComputer &qdis,
+        std::priority_queue<NodeDistFarther> &input,
+        std::vector<NodeDistFarther> &output,
+        int max_size,
+        int gamma = 1,
+        storage_idx_t q_id = 0,
+        std::vector<int> q_attr = {});
+  };
 
-struct ACORNStats {
+  struct ACORNStats
+  {
     size_t n1, n2, n3;
     size_t ndis;
     size_t nreorder;
@@ -340,57 +350,59 @@ struct ACORNStats {
     double visits;
 
     ACORNStats(
-            size_t n1 = 0,
-            size_t n2 = 0,
-            size_t n3 = 0,
-            size_t ndis = 0,
-            size_t nreorder = 0,
-            double candidates_loop = 0.0,
-            double neighbors_loop = 0.0,
-            double tuple_unwrap = 0.0,
-            double skips = 0.0,
-            double visits = 0.0)
-            : n1(n1),
-              n2(n2),
-              n3(n3),
-              ndis(ndis),
-              nreorder(nreorder),
-              candidates_loop(candidates_loop),
-              neighbors_loop(neighbors_loop),
-              tuple_unwrap(tuple_unwrap),
-              skips(skips),
-              visits(visits) {}
+        size_t n1 = 0,
+        size_t n2 = 0,
+        size_t n3 = 0,
+        size_t ndis = 0,
+        size_t nreorder = 0,
+        double candidates_loop = 0.0,
+        double neighbors_loop = 0.0,
+        double tuple_unwrap = 0.0,
+        double skips = 0.0,
+        double visits = 0.0)
+        : n1(n1),
+          n2(n2),
+          n3(n3),
+          ndis(ndis),
+          nreorder(nreorder),
+          candidates_loop(candidates_loop),
+          neighbors_loop(neighbors_loop),
+          tuple_unwrap(tuple_unwrap),
+          skips(skips),
+          visits(visits) {}
 
-    void reset() {
-        n1 = n2 = n3 = 0;
-        ndis = 0;
-        nreorder = 0;
+    void reset()
+    {
+      n1 = n2 = n3 = 0;
+      ndis = 0;
+      nreorder = 0;
 
-        // added
-        candidates_loop = 0.0;
-        neighbors_loop = 0.0;
-        tuple_unwrap = 0.0;
-        skips = 0.0;
-        visits = 0.0;
+      // added
+      candidates_loop = 0.0;
+      neighbors_loop = 0.0;
+      tuple_unwrap = 0.0;
+      skips = 0.0;
+      visits = 0.0;
     }
 
-    void combine(const ACORNStats& other) {
-        n1 += other.n1;
-        n2 += other.n2;
-        n3 += other.n3;
-        ndis += other.ndis;
-        nreorder += other.nreorder;
+    void combine(const ACORNStats &other)
+    {
+      n1 += other.n1;
+      n2 += other.n2;
+      n3 += other.n3;
+      ndis += other.ndis;
+      nreorder += other.nreorder;
 
-        // added
-        candidates_loop += other.candidates_loop;
-        neighbors_loop += other.neighbors_loop;
-        tuple_unwrap += other.tuple_unwrap;
-        skips = other.skips;
-        visits = other.visits;
+      // added
+      candidates_loop += other.candidates_loop;
+      neighbors_loop += other.neighbors_loop;
+      tuple_unwrap += other.tuple_unwrap;
+      skips = other.skips;
+      visits = other.visits;
     }
-};
+  };
 
-// global var that collects them all
-FAISS_API extern ACORNStats acorn_stats;
+  // global var that collects them all
+  FAISS_API extern ACORNStats acorn_stats;
 
 } // namespace faiss
