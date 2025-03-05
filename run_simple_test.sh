@@ -28,8 +28,8 @@ now=$(date +"%m-%d-%Y")
 
 
 # run of sift1M test
-N=1000000 
-gamma=12 
+N=8000
+gamma=80
 dataset=sift1M
 M=32 
 M_beta=64

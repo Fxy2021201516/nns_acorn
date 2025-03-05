@@ -50,13 +50,13 @@ int main(int argc, char *argv[])
        << std::endl;
    double t0 = elapsed();
 
-   int efc = 40;   // default is 40
-   int efs = 1000; //  default is 16
-   int k = 10;     // search parameter
-   size_t d = 128; // dimension of the vectors to index - will be overwritten
-                   // by the dimension of the dataset
-   int M;          // HSNW param M TODO change M back
-   int M_beta;     // param for compression
+   int efc = 40;    // default is 40
+   int efs = 1000;  //  default is 16
+   int k = 10;      // search parameter
+   size_t d = 3072; // dimension of the vectors to index - will be overwritten
+                    // by the dimension of the dataset
+   int M;           // HSNW param M TODO change M back
+   int M_beta;      // param for compression
    // float attr_sel = 0.001;
    // int gamma = (int) 1 / attr_sel;
    int gamma;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
    std::string assignment_type = "rand";
    int alpha = 0;
    bool generate_json = false;
-   bool dis_or_cost_in_search = false; // false:dist;true:cost
+   bool dis_or_cost_in_search = true; // false:dist;true:cost
 
    srand(0); // seed for random number generator
    int num_trials = 60;
@@ -137,6 +137,11 @@ int main(int argc, char *argv[])
    std::cout << "N:" << N << std::endl;
    metadata_multi.resize(N);
    assert(N == metadata_multi.size());
+   // 对每个向量的 label 进行排序
+   for (auto &vec : metadata_multi)
+   {
+      std::sort(vec.begin(), vec.end());
+   }
    printf("[%.3f s] Loaded multi metadata, %ld attr's found\n",
           elapsed() - t0,
           metadata_multi.size());
@@ -157,7 +162,7 @@ int main(int argc, char *argv[])
       std::string filename = get_file_name(dataset, is_base);
       // xq = fvecs_read(filename.c_str(), &d2, &nq);
       //  xq = fvecs_read_one_vector(filename.c_str(), &d2, 100);
-      nq = 100;
+      nq = 1000;
       xq = fvecs_read_first_n_vectors(filename.c_str(), &d2, nq);
       assert(d == d2 ||
              !"query does not have same dimension as expected 128");
@@ -175,6 +180,8 @@ int main(int argc, char *argv[])
       printf("enter load_aq_multi\n");
       aq_multi = load_aq_multi(dataset, n_centroids, alpha, N);
       oaq_multi = load_oaq_multi(dataset, n_centroids, alpha, N);
+      std::cout << "aq_multi.size():" << aq_multi.size() << std::endl;
+      std::cout << "oaq_multi.size():" << oaq_multi.size() << std::endl;
 
       // 初始化 coverage 数组，用于记录每个查询对每个属性的覆盖情况
       e_coverage.resize(oaq_multi.size() + 1); // 为每个查询创建记录
@@ -395,6 +402,7 @@ int main(int argc, char *argv[])
       std::vector<std::vector<float>> optional_coverage;
       if (generate_json)
       {
+         std::cout << "oaq_multi.size():" << oaq_multi.size() << std::endl;
          calculate_attribute_coverage(
              metadata_multi, oaq_multi, optional_coverage);
          save_coverage_to_json(
@@ -479,17 +487,19 @@ int main(int argc, char *argv[])
              total_time,
              qps);
 
-      std::vector<std::vector<float>> sort_filter_all_cost;
+      // std::vector<std::vector<float>> sort_filter_all_cost;
+      std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost;
       extract_and_sort_costs(
           all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
       // 计算recall
       if (generate_json)
       {
-         create_directory("../acorn_data/my_cost_sort_filter");
+         if (!std::filesystem::exists("../acorn_data/my_cost_sort_filter"))
+            std::filesystem::create_directory("../acorn_data/my_cost_sort_filter");
          saveAllCostToJSON(
              sort_filter_all_cost, "../acorn_data/my_cost_sort_filter");
       }
-      double recall = calculateRecall(sort_filter_all_cost, cost2, nq, k);
+      double recall = calculateRecall(sort_filter_all_cost, nns2, nq, k);
       std::cout << "Recall: " << recall << "(ACORN)" << std::endl;
 
       std::cout << "finished hybrid index examples" << std::endl;
@@ -552,7 +562,8 @@ int main(int argc, char *argv[])
           aq_multi,
           all_cost,
           query_id,
-          metadata_multi);
+          metadata_multi,
+          dis_or_cost_in_search);
       double t2 = elapsed();
 
       printf("[%.3f s] Query results (vector ids, then distances):\n",
@@ -596,10 +607,10 @@ int main(int argc, char *argv[])
              total_time,
              qps);
 
-      std::vector<std::vector<float>> sort_filter_all_cost;
+      std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost; // (id, cost)
       extract_and_sort_costs(
           all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
-      double recall = calculateRecall(sort_filter_all_cost, cost, nq, k);
+      double recall = calculateRecall(sort_filter_all_cost, nns, nq, k);
       std::cout << "Recall: " << recall << "(HNSW)" << std::endl;
    }
 
