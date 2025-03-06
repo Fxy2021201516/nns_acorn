@@ -55,8 +55,15 @@ namespace fs = std::filesystem;
  **/
 
 // MACRO
-#define TESTING_DATA_DIR "../acorn_data/testing_data"
-#define TESTING_DATA_MULTI_DIR "../acorn_data/testing_data_multi"
+#define DATASETS_DIR "../acorn_data/TimeTravel/Datasets"
+#define TESTING_DATA_DIR "../acorn_data/TimeTravel/testing_data"
+#define TESTING_DATA_MULTI_DIR "../acorn_data/TimeTravel/testing_data_multi"
+#define TMP_MULTI_DIR "../acorn_data/TimeTravel/tmp_multi"
+#define MY_COST_DIR "../acorn_data/TimeTravel/my_cost"
+#define MY_COST_SORT_FILTER_DIR "../acorn_data/TimeTravel/my_cost_sort_filter"
+#define MY_DIS_DIR "../acorn_data/TimeTravel/my_dis_of_every_query"
+#define MY_OPATTR_COVERAGE_DIR "../acorn_data/TimeTravel/my_opattr_coverage"
+#define MY_DIS_SORT_DIR "../acorn_data/TimeTravel/my_sorted_dis_of_every_query"
 
 #include <zlib.h>
 #include <cstring>
@@ -232,25 +239,35 @@ std::string get_file_name(std::string dataset, bool is_base)
 {
    if (dataset == "sift1M" || dataset == "sift1M_test")
    {
-      return std::string("../acorn_data/Datasets/sift1M/sift_") +
+      return std::string(DATASETS_DIR) + std::string("/sift1M/sift_") +
              (is_base ? "base" : "query") + ".fvecs";
    }
    else if (dataset == "sift1B")
    {
-      return std::string("../acorn_data/Datasets/sift1B/bigann_") +
+      return std::string(DATASETS_DIR) + std::string("/sift1B/bigann_") +
              (is_base ? "base_10m" : "query") + ".fvecs";
    }
    else if (dataset == "tripclick")
    {
-      return std::string("../acorn_data/Datasets/tripclick/") +
+      return std::string(DATASETS_DIR) + std::string("/tripclick/") +
              (is_base ? "base_vecs_tripclick"
                       : "query_vecs_tripclick_min100") +
              ".fvecs";
    }
    else if (dataset == "paper" || dataset == "paper_rand2m")
    {
-      return std::string("../acorn_data/Datasets/paper/") +
+      return std::string(DATASETS_DIR) + std::string("/paper/") +
              (is_base ? "paper_base" : "paper_query") + ".fvecs";
+   }
+   else if (dataset == "words")
+   {
+      return std::string(DATASETS_DIR) + std::string("/words/words_") +
+             (is_base ? "base" : "query") + ".fvecs";
+   }
+   else if (dataset == "TimeTravel")
+   {
+      return std::string(DATASETS_DIR) + std::string("/TimeTravel/TimeTravel_") +
+             (is_base ? "base" : "query") + ".fvecs";
    }
    else
    {
@@ -641,6 +658,49 @@ std::vector<std::vector<int>> load_aq_multi(
 
       return v;
    }
+   else if (dataset == "words")
+   {
+      assert((alpha == -2 || alpha == 0 || alpha == 2) ||
+             !"alpha must be value in [-2, 0, 2]");
+
+      // Compose File Name
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR
+                      << "/query_required_filters_words_"
+                      << N << "_nc=" << n_centroids
+                      << "_alpha=" << alpha << ".json";
+      std::string filepath = filepath_stream.str();
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded query attributes from: %s\n", filepath.c_str());
+
+      // // print out data for debugging
+      // for (int i : v) {
+      //     std::cout << i << " ";
+      // }
+      // std::cout << std::endl;
+
+      return v;
+   }
+   else if (dataset == "TimeTravel")
+   {
+      assert((alpha == -2 || alpha == 0 || alpha == 2) ||
+             !"alpha must be value in [-2, 0, 2]");
+
+      // Compose File Name
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR
+                      << "/query_required_filters_TimeTravel_"
+                      << N << "_nc=" << n_centroids
+                      << "_alpha=" << alpha << ".json";
+      std::string filepath = filepath_stream.str();
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded query attributes from: %s\n", filepath.c_str());
+      return v;
+   }
    else
    {
       std::cerr << "Invalid dataset in load_aq" << std::endl;
@@ -687,6 +747,45 @@ std::vector<std::vector<int>> load_oaq_multi(
       printf("loaded query optional attributes from: %s\n", filepath.c_str());
       return v;
    }
+   else if (dataset == "words")
+   {
+      assert((alpha == -2 || alpha == 0 || alpha == 2) ||
+             !"alpha must be value in [-2, 0, 2]");
+
+      // Compose File Name
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR
+                      << "/query_optional_filters_words_"
+                      << N << "_nc=" << n_centroids
+                      << "_alpha=" << alpha << ".json";
+      std::string filepath = filepath_stream.str();
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded query optional attributes from: %s\n", filepath.c_str());
+
+      return v;
+   }
+   else if (dataset == "TimeTravel")
+   {
+      assert((alpha == -2 || alpha == 0 || alpha == 2) ||
+             !"alpha must be value in [-2, 0, 2]");
+
+      // Compose File Name
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR
+                      << "/query_optional_filters_TimeTravel_"
+                      << N << "_nc=" << n_centroids
+                      << "_alpha=" << alpha << ".json";
+      std::string filepath = filepath_stream.str();
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded query optional attributes from: %s\n", filepath.c_str());
+
+      return v;
+   }
+
    else
    {
       std::cerr << "Invalid dataset in load_aq" << std::endl;
@@ -871,6 +970,41 @@ std::vector<std::vector<int>> load_ab_muti(
 
       return v;
    }
+   else if (dataset == "words")
+   {
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR << "/base_attrs_words_"
+                      << N << "_nc=" << n_centroids
+                      << "_assignment=" << assignment_type << ".json";
+      std::string filepath = filepath_stream.str();
+      // printf("%s\n", filepath.c_str());
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded base attributes from: %s\n", filepath.c_str());
+
+      // // print out data for debugging
+      // for (int i : v) {
+      //     std::cout << i << " ";
+      // }
+      // std::cout << std::endl;
+
+      return v;
+   }
+   else if (dataset == "TimeTravel")
+   {
+      std::stringstream filepath_stream;
+      filepath_stream << TESTING_DATA_MULTI_DIR << "/base_attrs_TimeTravel_"
+                      << N << "_nc=" << n_centroids
+                      << "_assignment=" << assignment_type << ".json";
+      std::string filepath = filepath_stream.str();
+      // printf("%s\n", filepath.c_str());
+
+      std::vector<std::vector<int>> v =
+          load_json_to_vector_multi<int>(filepath);
+      printf("loaded base attributes from: %s\n", filepath.c_str());
+      return v;
+   }
    else
    {
       std::cerr << "Invalid dataset in load_ab" << std::endl;
@@ -1041,15 +1175,15 @@ void save_single_query_to_json(
    j = query_distances;
 
    // 确保文件夹 'dis_of_every_query' 存在，如果不存在则创建
-   if (!fs::exists("../acorn_data/my_dis_of_every_query"))
+   if (!fs::exists(std::string(MY_DIS_DIR)))
    {
-      fs::create_directory("../acorn_data/my_dis_of_every_query");
-      std::cout << "Directory created: " << "../acorn_data/my_dis_of_every_query" << std::endl;
+      fs::create_directory(std::string(MY_DIS_DIR));
+      std::cout << "Directory created: " << std::string(MY_DIS_DIR) << std::endl;
    }
 
    // 生成查询的文件名，格式为
    // "dis_of_every_query/query_<query_idx>.json"
-   std::string filename = "../acorn_data/my_dis_of_every_query/" +
+   std::string filename = std::string(MY_DIS_DIR) + "/" +
                           filename_prefix + "_query_" + std::to_string(query_idx) + ".json";
 
    // 打开文件并写入 JSON 数据
@@ -1166,15 +1300,15 @@ void save_sorted_distances(
       j = query_distances;
 
       // 确保文件夹 'sorted_dis_of_every_query' 存在，如果不存在则创建
-      if (!fs::exists("../acorn_data/my_sorted_dis_of_every_query"))
+      if (!fs::exists(std::string(MY_DIS_SORT_DIR)))
       {
-         fs::create_directory("../acorn_data/my_sorted_dis_of_every_query");
-         std::cout << "Directory created: " << "../acorn_data/my_sorted_dis_of_every_query" << std::endl;
+         fs::create_directory(std::string(MY_DIS_SORT_DIR));
+         std::cout << "Directory created: " << std::string(MY_DIS_SORT_DIR) << std::endl;
       }
 
       // 生成查询的文件名，格式为
       // "sorted_dis_of_every_query/query_<query_idx>.json"
-      std::string filename = "../acorn_data/my_sorted_dis_of_every_query/" +
+      std::string filename = std::string(MY_DIS_SORT_DIR) + "/" +
                              filename_prefix + "_query_" + std::to_string(i) + ".json";
 
       // 打开文件并写入 JSON 数据
@@ -1221,7 +1355,7 @@ void calculate_attribute_coverage(
 
    for (size_t q = 0; q < query_count; ++q)
    {
-      std::cout << "q: " << q << std::endl;
+      // std::cout << "q: " << q << std::endl;
       const auto &oaq_set = oaq_sets[q]; // 当前查询尽量包含的属性
 
       std::vector<float> query_coverage; // 存储当前查询下所有向量的覆盖率
@@ -1262,10 +1396,10 @@ void save_coverage_to_json(
     const std::vector<std::vector<int>> &metadata_multi, // 向量的属性
     const std::string &base_filename)
 { // 输出文件名的基础部分
-   if (!fs::exists("../acorn_data/my_opattr_coverage"))
+   if (!fs::exists(std::string(MY_OPATTR_COVERAGE_DIR)))
    {
-      fs::create_directory("../acorn_data/my_opattr_coverage");
-      std::cout << "Directory created: " << "../acorn_data/my_opattr_coverage" << std::endl;
+      fs::create_directory(std::string(MY_OPATTR_COVERAGE_DIR));
+      std::cout << "Directory created: " << std::string(MY_OPATTR_COVERAGE_DIR) << std::endl;
    }
 
    // 遍历每个查询的覆盖率
@@ -1287,7 +1421,7 @@ void save_coverage_to_json(
       }
 
       std::ostringstream filename_stream;
-      filename_stream << "../acorn_data/my_opattr_coverage/" << base_filename
+      filename_stream << std::string(MY_OPATTR_COVERAGE_DIR) << "/" << base_filename
                       << "_query_" << q << ".json";
       std::string filename = filename_stream.str();
 
@@ -1571,7 +1705,7 @@ void extract_and_sort_distances(
    // 遍历每个查询
    std::cout << "enter extract_and_sort_distances" << std::endl;
    int query_count = aq_multi.size();
-   std::cout << "query_count: " << query_count << std::endl;
+   // std::cout << "query_count: " << query_count << std::endl;
    for (size_t query_index = 0; query_index < query_count; query_index++)
    {
       // 获取当前查询的必需属性
@@ -1634,7 +1768,7 @@ void extract_and_sort_costs(
    // 遍历每个查询
    std::cout << "enter extract_and_sort_costs" << std::endl;
    int query_count = aq_multi.size();
-   std::cout << "query_count: " << query_count << std::endl;
+   // std::cout << "query_count: " << query_count << std::endl;
    for (size_t query_index = 0; query_index < query_count; query_index++)
    {
       // 获取当前查询的必需属性
@@ -1698,77 +1832,7 @@ void sort_costs(
    }
 }
 
-// fxy_add 保存排序后的 cost 到 JSON 文件
-// void saveAllCostToJSON(
-//     const std::vector<std::vector<float>> &all_cost,
-//     const std::string &folder_path)
-// {
-//    for (size_t i = 0; i < all_cost.size(); ++i)
-//    {
-//       // 将每个查询的 cost 存为 JSON 文件
-//       std::string file_name =
-//           folder_path + "/cost_sort_query_" + std::to_string(i) + ".json";
-//       std::ofstream file(file_name);
-//       if (!file.is_open())
-//       {
-//          std::cerr << "Failed to open file: " << file_name << std::endl;
-//          continue;
-//       }
-
-//       // 将数据写入 JSON 文件
-//       json query_json = all_cost[i]; // 自动将 std::vector 转换为 JSON 数组
-//       file << query_json.dump(4);    // 格式化输出，缩进为 4 空格
-//       file.close();
-//    }
-// }
-
-// fxy_add 计算recall
-// double calculateRecall(
-//     const std::vector<std::vector<std::pair<int, float>>> &all_cost,
-//     const std::vector<float> &cost2,
-//     int nq,
-//     int k,
-//     float epsilon = 1e-5)
-// {
-//    int correct = 0;
-//    int total = 0;
-
-//    for (int i = 0; i < nq; ++i)
-//    {
-//       // 提取第 i 个查询的最短距离
-//       std::vector<float> query_cost(
-//           cost2.begin() + i * k, cost2.begin() + (i + 1) * k);
-
-//       // 提取排序后的 all_cost 的第 i 个查询结果
-//       const std::vector<float> &sorted_cost = all_cost[i];
-//       int pre_correct = correct;
-
-//       // 检查 query_cost 的每个值是否在 sorted_cost 的前 k 个元素中
-//       for (const float &cost : query_cost)
-//       {
-//          total++;
-//          // 使用近似比较而不是精确匹配
-//          bool found = false;
-//          for (int j = 0; j < k; ++j)
-//          {
-//             if (std::abs(sorted_cost[j] - cost) < epsilon)
-//             {
-//                found = true;
-//                break;
-//             }
-//          }
-//          if (found)
-//          {
-//             ++correct;
-//          }
-//       }
-
-//       std::cout << "i: " << i << " correct: " << correct - pre_correct
-//                 << std::endl;
-//    }
-
-//    return static_cast<double>(correct) / total;
-// }
+// fxy_add
 void saveAllCostToJSON(
     const std::vector<std::vector<std::pair<int, float>>> &all_cost,
     const std::string &folder_path)
