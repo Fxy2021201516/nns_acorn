@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # 读取数据
 data = []
-with open('/home/fengxiaoyao/acorn_data_sift1m/efs_results/all_efs.txt', 'r') as file:
+with open('/home/fengxiaoyao/acorn_data/words/efs_results/summary_all_efs.txt', 'r') as file:
     lines = file.readlines()
     for line in lines[1:]:  # 跳过标题行
         parts = line.strip().split(',')

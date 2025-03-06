@@ -7,10 +7,6 @@ rm -rf build
 # rm -rf my_dis_of_every_query
 # rm -rf my_opattr_coverage
 
-# 删除日期命名的目录 (例如：12-29-2024_sift1M)
-now=$(date +"%m-%d-%Y")
-rm -rf ../acorn_data/${now}_sift1M
-
 cmake -DFAISS_ENABLE_GPU=OFF -DFAISS_ENABLE_PYTHON=OFF -DBUILD_TESTING=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -B build
 
 make -C build -j faiss
@@ -23,13 +19,16 @@ make -C build test_acorn
 now=$(date +"%m-%d-%Y")
 
 # run of sift1M test
-N=8000
-gamma=80
-dataset=sift1M
+N=10250
+gamma=12
+dataset=TimeTravel
 M=32 
 M_beta=64
 
-parent_dir=../acorn_data/${now}_${dataset}  
+parent_dir=../acorn_data/${dataset}/${now}_${dataset}  
+
+rm -rf ../acorn_data/${dataset}/${now}_${dataset}  
+
 mkdir -p ${parent_dir}                      
 
 # 创建一个汇总文件，记录所有 efs 的 QPS 和 Recall
@@ -37,7 +36,7 @@ summary_file="${parent_dir}/summary_all_efs.txt"
 echo "efs,QPS_HNSW,Recall_HNSW,QPS_ACORN,Recall_ACORN" > ${summary_file}
 
 # 循环测试 efs 值
-for efs in $(seq 310 10 1000); do
+for efs in $(seq 10 10 1000); do
     dir=${parent_dir}/MB${M_beta}_efs${efs}  # 在目录名中加入 efs 值
     mkdir -p ${dir}                          
 

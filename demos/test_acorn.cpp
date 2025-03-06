@@ -50,13 +50,13 @@ int main(int argc, char *argv[])
        << std::endl;
    double t0 = elapsed();
 
-   int efc = 40;    // default is 40
-   int efs = 1000;  //  default is 16
-   int k = 10;      // search parameter
-   size_t d = 3072; // dimension of the vectors to index - will be overwritten
-                    // by the dimension of the dataset
-   int M;           // HSNW param M TODO change M back
-   int M_beta;      // param for compression
+   int efc = 40;   // default is 40
+   int efs = 1000; //  default is 16
+   int k = 10;     // search parameter
+   size_t d = 512; // dimension of the vectors to index - will be overwritten
+                   // by the dimension of the dataset
+   int M;          // HSNW param M TODO change M back
+   int M_beta;     // param for compression
    // float attr_sel = 0.001;
    // int gamma = (int) 1 / attr_sel;
    int gamma;
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
       printf("dataset: %s\n", dataset.c_str());
       if (dataset != "sift1M" && dataset != "sift1M_test" &&
           dataset != "sift1B" && dataset != "tripclick" &&
-          dataset != "paper" && dataset != "paper_rand2m")
+          dataset != "paper" && dataset != "paper_rand2m" && dataset != "words" && dataset != "TimeTravel")
       {
          printf("got dataset: %s\n", dataset.c_str());
          fprintf(stderr,
@@ -285,14 +285,14 @@ int main(int argc, char *argv[])
       std::stringstream filepath_stream;
       if (dataset == "sift1M" || dataset == "sift1B")
       {
-         filepath_stream << "../acorn_data/tmp_multi/hybrid_"
+         filepath_stream << std::string(TMP_MULTI_DIR) << "/" << "hybrid_"
                          << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
                          << "_assignment=" << assignment_type
                          << "_alpha=" << alpha << ".json";
       }
       else
       {
-         filepath_stream << "../acorn_data/tmp_multi/" << dataset
+         filepath_stream << std::string(TMP_MULTI_DIR)
                          << "/hybrid"
                          << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
                          << "_gamma=" << gamma << ".json";
@@ -307,14 +307,14 @@ int main(int argc, char *argv[])
       std::stringstream filepath_stream2;
       if (dataset == "sift1M" || dataset == "sift1B")
       {
-         filepath_stream2 << "../acorn_data/tmp_multi/hybrid_gamma1_"
+         filepath_stream2 << std::string(TMP_MULTI_DIR) << "/" << "hybrid_gamma1_"
                           << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
                           << "_assignment=" << assignment_type
                           << "_alpha=" << alpha << ".json";
       }
       else
       {
-         filepath_stream2 << "../acorn_data/tmp_multi/" << dataset
+         filepath_stream2 << std::string(TMP_MULTI_DIR)
                           << "/hybrid"
                           << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
                           << "_gamma=" << 1 << ".json";
@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
          std::stringstream filepath_stream;
          if (dataset == "sift1M" || dataset == "sift1B")
          {
-            filepath_stream << "../acorn_data/tmp_multi/base_"
+            filepath_stream << std::string(TMP_MULTI_DIR) << "/" << "base_"
                             << (int)(N / 1000 / 1000)
                             << "m_nc=" << n_centroids
                             << "_assignment=" << assignment_type
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
          }
          else
          {
-            filepath_stream << "../acorn_data/tmp_multi/" << dataset
+            filepath_stream << std::string(TMP_MULTI_DIR)
                             << "/base"
                             << "_M=" << M << "_efc=" << efc << ".json";
          }
@@ -395,7 +395,7 @@ int main(int argc, char *argv[])
       else
       {
          all_distances = read_all_distances(
-             "../acorn_data/my_dis_of_every_query", nq, N);
+             std::string(MY_DIS_DIR), nq, N);
       }
 
       // 计算覆盖率并生成 JSON 文件
@@ -411,7 +411,7 @@ int main(int argc, char *argv[])
       else
       {
          optional_coverage = read_optional_coverage(
-             "../acorn_data/my_opattr_coverage", nq, N);
+             std::string(MY_OPATTR_COVERAGE_DIR), nq, N);
       }
 
       std::vector<std::vector<float>> all_cost;
@@ -419,15 +419,15 @@ int main(int argc, char *argv[])
       {
          float alpha = 0.5f; // 设置 alpha 值
          calculate_and_save_cost(
-             "../acorn_data/my_dis_of_every_query",
-             "../acorn_data/my_opattr_coverage",
-             "../acorn_data/my_cost",
+             std::string(MY_DIS_DIR),
+             std::string(MY_OPATTR_COVERAGE_DIR),
+             std::string(MY_COST_DIR),
              all_cost,
              alpha);
       }
       else
       {
-         all_cost = read_all_cost("../acorn_data/my_cost", nq, N);
+         all_cost = read_all_cost(std::string(MY_COST_DIR), nq, N);
       }
 
       double t1_x = elapsed();
@@ -494,10 +494,10 @@ int main(int argc, char *argv[])
       // 计算recall
       if (generate_json)
       {
-         if (!std::filesystem::exists("../acorn_data/my_cost_sort_filter"))
-            std::filesystem::create_directory("../acorn_data/my_cost_sort_filter");
+         if (!std::filesystem::exists(std::string(MY_COST_SORT_FILTER_DIR)))
+            std::filesystem::create_directory(std::string(MY_COST_SORT_FILTER_DIR));
          saveAllCostToJSON(
-             sort_filter_all_cost, "../acorn_data/my_cost_sort_filter");
+             sort_filter_all_cost, std::string(MY_COST_SORT_FILTER_DIR));
       }
       double recall = calculateRecall(sort_filter_all_cost, nns2, nq, k);
       std::cout << "Recall: " << recall << "(ACORN)" << std::endl;
@@ -543,10 +543,10 @@ int main(int argc, char *argv[])
       std::vector<std::vector<float>> optional_coverage;
       std::vector<std::vector<float>> all_cost;
       all_distances = read_all_distances(
-          "../acorn_data/my_dis_of_every_query", nq, N);
+          std::string(MY_DIS_DIR), nq, N);
       optional_coverage = read_optional_coverage(
-          "../acorn_data/my_opattr_coverage", nq, N);
-      all_cost = read_all_cost("../acorn_data/my_cost", nq, N);
+          std::string(MY_OPATTR_COVERAGE_DIR), nq, N);
+      all_cost = read_all_cost(std::string(MY_COST_DIR), nq, N);
 
       std::cout << "nn and dis size: " << nns.size() << " " << dis.size()
                 << std::endl;
