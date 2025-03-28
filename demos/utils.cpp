@@ -55,15 +55,15 @@ namespace fs = std::filesystem;
  **/
 
 // MACRO
-#define DATASETS_DIR "../acorn_data/TimeTravel/Datasets"
-#define TESTING_DATA_DIR "../acorn_data/TimeTravel/testing_data"
-#define TESTING_DATA_MULTI_DIR "../acorn_data/TimeTravel/testing_data_multi"
-#define TMP_MULTI_DIR "../acorn_data/TimeTravel/tmp_multi"
-#define MY_COST_DIR "../acorn_data/TimeTravel/my_cost"
-#define MY_COST_SORT_FILTER_DIR "../acorn_data/TimeTravel/my_cost_sort_filter"
-#define MY_DIS_DIR "../acorn_data/TimeTravel/my_dis_of_every_query"
-#define MY_OPATTR_COVERAGE_DIR "../acorn_data/TimeTravel/my_opattr_coverage"
-#define MY_DIS_SORT_DIR "../acorn_data/TimeTravel/my_sorted_dis_of_every_query"
+#define DATASETS_DIR "../acorn_data/sift1M/Datasets"
+#define TESTING_DATA_DIR "../acorn_data/sift1M/testing_data"
+#define TESTING_DATA_MULTI_DIR "../acorn_data/sift1M/testing_data_multi"
+#define TMP_MULTI_DIR "../acorn_data/sift1M/tmp_multi"
+#define MY_COST_DIR "../acorn_data/sift1M/my_cost"
+#define MY_COST_SORT_FILTER_DIR "../acorn_data/sift1M/my_cost_sort_filter"
+#define MY_DIS_DIR "../acorn_data/sift1M/my_dis_of_every_query"
+#define MY_OPATTR_COVERAGE_DIR "../acorn_data/sift1M/my_opattr_coverage"
+#define MY_DIS_SORT_DIR "../acorn_data/sift1M/my_sorted_dis_of_every_query"
 
 #include <zlib.h>
 #include <cstring>
@@ -1676,15 +1676,28 @@ bool binary_search(const std::vector<int> &vec, int target)
 }
 
 // fxy_add 判断向量是否包含所有必需的属性
+// bool has_required_attributes(
+//     const std::vector<int> &vector_attributes,
+//     const std::vector<int> &required_attributes)
+// {
+//    for (int attr : required_attributes)
+//    {
+//       if (std::find(
+//               vector_attributes.begin(), vector_attributes.end(), attr) ==
+//           vector_attributes.end())
+//       {
+//          return false;
+//       }
+//    }
+//    return true;
+// }
 bool has_required_attributes(
     const std::vector<int> &vector_attributes,
     const std::vector<int> &required_attributes)
 {
    for (int attr : required_attributes)
    {
-      if (std::find(
-              vector_attributes.begin(), vector_attributes.end(), attr) ==
-          vector_attributes.end())
+      if (!std::binary_search(vector_attributes.begin(), vector_attributes.end(), attr))
       {
          return false;
       }
@@ -1779,6 +1792,7 @@ void extract_and_sort_costs(
 
       // 遍历所有向量，检查是否符合当前查询的属性要求
       int vector_count = metadata_multi.size();
+      // std::cout << "metadata_multi.size()" << metadata_multi.size() << std::endl;
       for (size_t vector_index = 0; vector_index < vector_count; vector_index++)
       {
          const std::vector<int> &vector_attributes =
@@ -1788,7 +1802,7 @@ void extract_and_sort_costs(
          if (has_required_attributes(
                  vector_attributes, required_attributes))
          {
-            // 将符合条件的向量的索引和对应的 cost 保存到 valid_vectors 中
+            //  将符合条件的向量的索引和对应的 cost 保存到 valid_vectors 中
             valid_vectors.push_back(
                 {static_cast<int>(vector_index),
                  all_cost[query_index][vector_index]});
@@ -1809,11 +1823,12 @@ void extract_and_sort_costs(
       std::vector<std::pair<int, float>> sorted_costs;
       for (const auto &vec : valid_vectors)
       {
-         sorted_costs.push_back(vec); // 只保存 cost
+         sorted_costs.push_back(vec);
       }
 
       // 将排序后的向量索引添加到 sort_filter_all_cost 中
       sort_filter_all_cost.push_back(sorted_costs);
+      // std::cout << "sort_filter_all_cost.size()" << sort_filter_all_cost.size() << std::endl;
    }
 }
 
@@ -1870,7 +1885,8 @@ double calculateRecall(
 {
    int correct = 0;
    int total = 0;
-
+   std::cout << "enter calculateRecall" << std::endl;
+   // std::cout << "nq: " << nq << std::endl;
    for (int i = 0; i < nq; ++i)
    {
       // 提取第 i 个查询的 ID 列表
@@ -1879,6 +1895,8 @@ double calculateRecall(
 
       // 提取排序后的 all_cost 中第 i 个查询的 ID 集合
       const std::vector<std::pair<int, float>> &sorted_cost = all_cost[i];
+      // std::cout << "all_cost " << all_cost.size() << std::endl;
+      // std::cout << "sorted_cost " << sorted_cost.size() << std::endl;
       int pre_correct = correct;
 
       // 检查 query_ids 是否在 sorted_cost 的前 k 个元素中
@@ -1900,8 +1918,7 @@ double calculateRecall(
          }
       }
 
-      std::cout << "i: " << i << " correct: " << correct - pre_correct
-                << std::endl;
+      // std::cout << "i: " << i << " correct: " << correct - pre_correct << std::endl;
    }
 
    return static_cast<double>(correct) / total;

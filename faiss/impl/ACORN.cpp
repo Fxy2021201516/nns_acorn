@@ -1399,8 +1399,8 @@ namespace faiss
                   }
                   if (num_found >= hnsw.M)
                   {
-                     std::cout << "if (num_found >= hnsw.M)" << std::endl;
-                     std::cout << "num_found: " << num_found << std::endl;
+                     // std::cout << "if (num_found >= hnsw.M)" << std::endl;
+                     // std::cout << "num_found: " << num_found << std::endl;
                      break;
                   }
                }
@@ -2647,7 +2647,7 @@ namespace faiss
       // filter);
 
       // 检查输入参数
-      if (aq_multi.empty() || oaq_multi.empty() || e_coverage.empty())
+      if (aq_multi.empty() || oaq_multi.empty())
       {
          std::cerr << "Error: One of the input vectors is empty!" << std::endl;
          return {};

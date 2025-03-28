@@ -51,9 +51,9 @@ int main(int argc, char *argv[])
    double t0 = elapsed();
 
    int efc = 40;   // default is 40
-   int efs = 1000; //  default is 16
+   int efs = 10;   //  default is 16
    int k = 10;     // search parameter
-   size_t d = 512; // dimension of the vectors to index - will be overwritten
+   size_t d = 128; // dimension of the vectors to index - will be overwritten
                    // by the dimension of the dataset
    int M;          // HSNW param M TODO change M back
    int M_beta;     // param for compression
@@ -180,6 +180,14 @@ int main(int argc, char *argv[])
       printf("enter load_aq_multi\n");
       aq_multi = load_aq_multi(dataset, n_centroids, alpha, N);
       oaq_multi = load_oaq_multi(dataset, n_centroids, alpha, N);
+      for (auto &inner_vector : aq_multi)
+      {
+         std::sort(inner_vector.begin(), inner_vector.end());
+      }
+      for (auto &inner_vector : oaq_multi)
+      {
+         std::sort(inner_vector.begin(), inner_vector.end());
+      }
       std::cout << "aq_multi.size():" << aq_multi.size() << std::endl;
       std::cout << "oaq_multi.size():" << oaq_multi.size() << std::endl;
 
@@ -229,32 +237,40 @@ int main(int argc, char *argv[])
    faiss::IndexACORNFlat hybrid_index_gamma1(d, M, 1, metadata_multi, M * 2);
    hybrid_index_gamma1.acorn.efSearch = efs; // default is 16 HybridHNSW.capp
 
-   { // ====================Vectors====================
-      std::cout << "====================Vectors====================\n"
-                << std::endl;
-      // printf("====================Vectors====================\n");
+   //{ // ====================Vectors====================
+   std::cout << "====================Vectors====================\n"
+             << std::endl;
 
-      printf("[%.3f s] Loading database\n", elapsed() - t0);
+   printf("[%.3f s] Loading database\n", elapsed() - t0);
 
-      size_t nb, d2;
-      bool is_base = 1;
-      std::string filename = get_file_name(dataset, is_base);
-      float *xb = fvecs_read(filename.c_str(), &d2, &nb);
-      assert(d == d2 || !"dataset does not dim 128 as expected");
-      printf("[%.3f s] Loaded base vectors from file: %s\n",
-             elapsed() - t0,
-             filename.c_str());
+   size_t nb, d2;
+   bool is_base = 1;
+   std::string filename = get_file_name(dataset, is_base);
+   float *xb = fvecs_read(filename.c_str(), &d2, &nb);
+   assert(d == d2 || !"dataset does not dim 128 as expected");
+   printf("[%.3f s] Loaded base vectors from file: %s\n",
+          elapsed() - t0,
+          filename.c_str());
 
-      std::cout << "data loaded, with dim: " << d2 << ", nb=" << nb
-                << std::endl;
+   std::cout << "data loaded, with dim: " << d2 << ", nb=" << nb
+             << std::endl;
 
-      printf("[%.3f s] Indexing database, size %ld*%ld from max %ld\n",
-             elapsed() - t0,
-             N,
-             d2,
-             nb);
+   printf("[%.3f s] Indexing database, size %ld*%ld from max %ld\n",
+          elapsed() - t0,
+          N,
+          d2,
+          nb);
 
-      // index->add(nb, xb);
+   double total_qps_hnsw = 0.0;
+   double total_recall_hnsw = 0.0;
+   double total_qps_acorn = 0.0;
+   double total_recall_acorn = 0.0;
+
+   // 并行
+   // #pragma omp parallel for
+   for (int cnt = 1; cnt <= 1; cnt++)
+   {
+      printf("//=======================cnt:%d=======================\n//", cnt);
 
       printf("[%.3f s] Adding the vectors to the index\n", elapsed() - t0);
 
@@ -273,365 +289,311 @@ int main(int argc, char *argv[])
       std::cout << "Hybrid index with gamma=1 vectors added" << nb
                 << std::endl;
 
-      delete[] xb;
-   }
+      // delete[] xb;
 
-   // ====================Write Index====================
-   {
-      std::cout << "====================Write Index====================\n"
-                << std::endl;
-      // write hybrid index
-      // std::string filename = "hybrid_index" + dataset + ".index";
-      std::stringstream filepath_stream;
-      if (dataset == "sift1M" || dataset == "sift1B")
-      {
-         filepath_stream << std::string(TMP_MULTI_DIR) << "/" << "hybrid_"
-                         << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
-                         << "_assignment=" << assignment_type
-                         << "_alpha=" << alpha << ".json";
-      }
-      else
-      {
-         filepath_stream << std::string(TMP_MULTI_DIR)
-                         << "/hybrid"
-                         << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
-                         << "_gamma=" << gamma << ".json";
-      }
-      std::string filepath = filepath_stream.str();
-      write_index(&hybrid_index, filepath.c_str());
-      printf("[%.3f s] Wrote hybrid index to file: %s\n",
-             elapsed() - t0,
-             filepath.c_str());
+      printf("====================Search====================\n");
+      printf("==============================================\n");
+      double t1 = elapsed();
 
-      // write hybrid_gamma1 index
-      std::stringstream filepath_stream2;
-      if (dataset == "sift1M" || dataset == "sift1B")
-      {
-         filepath_stream2 << std::string(TMP_MULTI_DIR) << "/" << "hybrid_gamma1_"
-                          << (int)(N / 1000 / 1000) << "m_nc=" << n_centroids
-                          << "_assignment=" << assignment_type
-                          << "_alpha=" << alpha << ".json";
-      }
-      else
-      {
-         filepath_stream2 << std::string(TMP_MULTI_DIR)
-                          << "/hybrid"
-                          << "_M=" << M << "_efc" << efc << "_Mb=" << M_beta
-                          << "_gamma=" << 1 << ".json";
-      }
-      std::string filepath2 = filepath_stream2.str();
-      write_index(&hybrid_index_gamma1, filepath2.c_str());
-      printf("[%.3f s] Wrote hybrid_gamma1 index to file: %s\n",
-             elapsed() - t0,
-             filepath2.c_str());
+      { // ==================== ACORN INDEX ====================
+         printf("==================== ACORN INDEX ====================\n");
+         printf("[%.3f s] Searching the %d nearest neighbors "
+                "of %ld vectors in the index, efsearch %d\n",
+                elapsed() - t0,
+                k,
+                nq,
+                hybrid_index.acorn.efSearch);
 
-      { // write base index
-         std::stringstream filepath_stream;
-         if (dataset == "sift1M" || dataset == "sift1B")
+         std::vector<faiss::idx_t> nns2(k * nq);
+         std::vector<float> dis2(k * nq);
+         std::vector<float> cost2(k * nq);
+
+         int query_id = 0; // 记录查询的次数
+
+         // 计算距离并生成 JSON 文件
+         float *all_distances = new float[nq * N]; // 存储距离结果
+         if (generate_json)
          {
-            filepath_stream << std::string(TMP_MULTI_DIR) << "/" << "base_"
-                            << (int)(N / 1000 / 1000)
-                            << "m_nc=" << n_centroids
-                            << "_assignment=" << assignment_type
-                            << "_alpha=" << alpha << ".json";
+            hybrid_index.calculate_distances_multi(
+                nq, xq, k, all_distances, nns2.data(), query_id);
+            save_distances_to_json(nq, N, all_distances, "distances");
          }
          else
          {
-            filepath_stream << std::string(TMP_MULTI_DIR)
-                            << "/base"
-                            << "_M=" << M << "_efc=" << efc << ".json";
+            all_distances = read_all_distances(
+                std::string(MY_DIS_DIR), nq, N);
          }
-         std::string filepath = filepath_stream.str();
-         write_index(&base_index, filepath.c_str());
-         printf("[%.3f s] Wrote base index to file: %s\n",
-                elapsed() - t0,
-                filepath.c_str());
-      }
-   }
 
-   { // print out stats
-      printf("====================================\n");
-      printf("============ BASE INDEX =============\n");
-      printf("====================================\n");
-      base_index.printStats(false);
-      printf("====================================\n");
-      printf("============ ACORN INDEX =============\n");
-      printf("====================================\n");
-      hybrid_index.printStats(false);
-   }
+         // 计算覆盖率并生成 JSON 文件
+         std::vector<std::vector<float>> optional_coverage;
+         if (generate_json)
+         {
+            std::cout << "oaq_multi.size():" << oaq_multi.size() << std::endl;
+            calculate_attribute_coverage(
+                metadata_multi, oaq_multi, optional_coverage);
+            save_coverage_to_json(
+                optional_coverage, metadata_multi, "optional_coverage");
+         }
+         else
+         {
+            optional_coverage = read_optional_coverage(
+                std::string(MY_OPATTR_COVERAGE_DIR), nq, N);
+         }
 
-   printf("==============================================\n");
-   printf("====================Search Results====================\n");
-   printf("==============================================\n");
-   // double t1 = elapsed();
-   printf("==============================================\n");
-   printf("====================Search====================\n");
-   printf("==============================================\n");
-   double t1 = elapsed();
+         std::vector<std::vector<float>> all_cost;
+         if (generate_json)
+         {
+            float alpha = 0.5f; // 设置 alpha 值
+            calculate_and_save_cost(
+                std::string(MY_DIS_DIR),
+                std::string(MY_OPATTR_COVERAGE_DIR),
+                std::string(MY_COST_DIR),
+                all_cost,
+                alpha);
+         }
+         else
+         {
+            all_cost = read_all_cost(std::string(MY_COST_DIR), nq, N);
+         }
 
-   { // ==================== ACORN INDEX ====================
-      printf("==================== ACORN INDEX ====================\n");
-      printf("[%.3f s] Searching the %d nearest neighbors "
-             "of %ld vectors in the index, efsearch %d\n",
-             elapsed() - t0,
-             k,
+         double t1_x = elapsed();
+         // const SearchParameters* params_index = nullptr;
+         hybrid_index.search_multi(
              nq,
-             hybrid_index.acorn.efSearch);
+             xq,
+             k,
+             cost2.data(),
+             nns2.data(),
+             aq_multi,
+             oaq_multi,
+             e_coverage,
+             all_cost,
+             query_id,
+             dis_or_cost_in_search);
+         double t2_x = elapsed();
 
-      std::vector<faiss::idx_t> nns2(k * nq);
-      std::vector<float> dis2(k * nq);
-      std::vector<float> cost2(k * nq);
+         printf("[%.3f s] Query results (vector ids, then distances):\n",
+                elapsed() - t0);
 
-      int query_id = 0; // 记录查询的次数
+         int nq_print = std::min(100, (int)nq);
+         for (int i = 0; i < nq_print; i++)
+         {
+            printf("my query %2d nn's: ", i);
+            for (int j = 0; j < k; j++)
+            {
+               int row_idx = nns2[j + i * k]; // 获取行索引
+               if (row_idx >= 0 && row_idx < metadata_multi.size())
+               {
+                  // 打印该行中的所有元素
+                  printf("%7ld (", nns2[j + i * k]);
+                  for (int val : metadata_multi[row_idx])
+                  {
+                     printf("%d ", val);
+                  }
+                  printf(") ");
+               }
+               else
+               {
+                  printf("Invalid row index ");
+               }
+            }
+            printf("\n     dis: \t");
+            for (int j = 0; j < k; j++)
+            {
+               printf("%7g ", cost2[j + i * k]);
+            }
+            printf("\n");
+         }
 
-      // 计算距离并生成 JSON 文件
-      float *all_distances = new float[nq * N]; // 存储距离结果
-      if (generate_json)
-      {
-         hybrid_index.calculate_distances_multi(
-             nq, xq, k, all_distances, nns2.data(), query_id);
-         save_distances_to_json(nq, N, all_distances, "distances");
+         // printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2_x - t1_x);
+         double total_time = t2_x - t1_x;
+         double qps = nq / total_time;
+         printf("[%.3f s] *** Query time: %f seconds, QPS: %f  (ACORN)\n",
+                elapsed() - t0,
+                total_time,
+                qps);
+
+         // std::vector<std::vector<float>> sort_filter_all_cost;
+         std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost;
+         extract_and_sort_costs(
+             all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
+         // 计算recall
+         if (generate_json)
+         {
+            if (!std::filesystem::exists(std::string(MY_COST_SORT_FILTER_DIR)))
+               std::filesystem::create_directory(std::string(MY_COST_SORT_FILTER_DIR));
+            saveAllCostToJSON(
+                sort_filter_all_cost, std::string(MY_COST_SORT_FILTER_DIR));
+         }
+         std::cout << "sort_filter_all_cost: " << sort_filter_all_cost.size() << std::endl;
+         double recall = calculateRecall(sort_filter_all_cost, nns2, nq, k);
+         std::cout << "Recall: " << recall << "(ACORN)" << std::endl;
+
+         total_qps_acorn += qps;
+         total_recall_acorn += recall;
+
+         std::cout << "finished hybrid index examples" << std::endl;
       }
-      else
-      {
+
+      { // ============= ACORN QUERY PROFILING STATS =============
+         const faiss::ACORNStats &stats = faiss::acorn_stats;
+
+         std::cout << "============= ACORN QUERY PROFILING STATS ============="
+                   << std::endl;
+         printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
+                elapsed() - t0,
+                k,
+                nq);
+         std::cout << "n1: " << stats.n1 << std::endl;
+         std::cout << "n2: " << stats.n2 << std::endl;
+         std::cout << "n3 (number distance comps at level 0): " << stats.n3
+                   << std::endl;
+         std::cout << "ndis: " << stats.ndis << std::endl;
+         std::cout << "nreorder: " << stats.nreorder << std::endl;
+         // printf("average distance computations per query: %f\n",
+         //        (float)stats.n3 / stats.n1);
+      }
+
+      { // ====================HNSW INDEX====================
+         printf("====================HNSW INDEX====================\n");
+         printf("[%.3f s] Searching the %d nearest neighbors "
+                "of %ld vectors in the index, efsearch %d\n",
+                elapsed() - t0,
+                k,
+                nq,
+                base_index.hnsw.efSearch);
+
+         std::vector<faiss::idx_t> nns(k * nq);
+         std::vector<float> dis(k * nq);
+         std::vector<float> cost(k * nq);
+
+         int query_id = 0; // 记录查询的次数
+
+         float *all_distances = new float[nq * N]; // 存储距离结果
+         std::vector<std::vector<float>> optional_coverage;
+         std::vector<std::vector<float>> all_cost;
          all_distances = read_all_distances(
              std::string(MY_DIS_DIR), nq, N);
-      }
-
-      // 计算覆盖率并生成 JSON 文件
-      std::vector<std::vector<float>> optional_coverage;
-      if (generate_json)
-      {
-         std::cout << "oaq_multi.size():" << oaq_multi.size() << std::endl;
-         calculate_attribute_coverage(
-             metadata_multi, oaq_multi, optional_coverage);
-         save_coverage_to_json(
-             optional_coverage, metadata_multi, "optional_coverage");
-      }
-      else
-      {
          optional_coverage = read_optional_coverage(
              std::string(MY_OPATTR_COVERAGE_DIR), nq, N);
-      }
-
-      std::vector<std::vector<float>> all_cost;
-      if (generate_json)
-      {
-         float alpha = 0.5f; // 设置 alpha 值
-         calculate_and_save_cost(
-             std::string(MY_DIS_DIR),
-             std::string(MY_OPATTR_COVERAGE_DIR),
-             std::string(MY_COST_DIR),
-             all_cost,
-             alpha);
-      }
-      else
-      {
          all_cost = read_all_cost(std::string(MY_COST_DIR), nq, N);
-      }
 
-      double t1_x = elapsed();
-      // const SearchParameters* params_index = nullptr;
-      hybrid_index.search_multi(
-          nq,
-          xq,
-          k,
-          cost2.data(),
-          nns2.data(),
-          aq_multi,
-          oaq_multi,
-          e_coverage,
-          all_cost,
-          query_id,
-          dis_or_cost_in_search);
-      double t2_x = elapsed();
+         std::cout << "nn and dis size: " << nns.size() << " " << dis.size()
+                   << std::endl;
 
-      printf("[%.3f s] Query results (vector ids, then distances):\n",
-             elapsed() - t0);
-
-      int nq_print = std::min(100, (int)nq);
-      for (int i = 0; i < nq_print; i++)
-      {
-         printf("my query %2d nn's: ", i);
-         for (int j = 0; j < k; j++)
-         {
-            int row_idx = nns2[j + i * k]; // 获取行索引
-            if (row_idx >= 0 && row_idx < metadata_multi.size())
-            {
-               // 打印该行中的所有元素
-               printf("%7ld (", nns2[j + i * k]);
-               for (int val : metadata_multi[row_idx])
-               {
-                  printf("%d ", val);
-               }
-               printf(") ");
-            }
-            else
-            {
-               printf("Invalid row index ");
-            }
-         }
-         printf("\n     dis: \t");
-         for (int j = 0; j < k; j++)
-         {
-            printf("%7g ", cost2[j + i * k]);
-         }
-         printf("\n");
-      }
-
-      // printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2_x - t1_x);
-      double total_time = t2_x - t1_x;
-      double qps = nq / total_time;
-      printf("[%.3f s] *** Query time: %f seconds, QPS: %f  (ACORN)\n",
-             elapsed() - t0,
-             total_time,
-             qps);
-
-      // std::vector<std::vector<float>> sort_filter_all_cost;
-      std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost;
-      extract_and_sort_costs(
-          all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
-      // 计算recall
-      if (generate_json)
-      {
-         if (!std::filesystem::exists(std::string(MY_COST_SORT_FILTER_DIR)))
-            std::filesystem::create_directory(std::string(MY_COST_SORT_FILTER_DIR));
-         saveAllCostToJSON(
-             sort_filter_all_cost, std::string(MY_COST_SORT_FILTER_DIR));
-      }
-      double recall = calculateRecall(sort_filter_all_cost, nns2, nq, k);
-      std::cout << "Recall: " << recall << "(ACORN)" << std::endl;
-
-      std::cout << "finished hybrid index examples" << std::endl;
-   }
-
-   { // ============= ACORN QUERY PROFILING STATS =============
-      const faiss::ACORNStats &stats = faiss::acorn_stats;
-
-      std::cout << "============= ACORN QUERY PROFILING STATS ============="
-                << std::endl;
-      printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
-             elapsed() - t0,
-             k,
-             nq);
-      std::cout << "n1: " << stats.n1 << std::endl;
-      std::cout << "n2: " << stats.n2 << std::endl;
-      std::cout << "n3 (number distance comps at level 0): " << stats.n3
-                << std::endl;
-      std::cout << "ndis: " << stats.ndis << std::endl;
-      std::cout << "nreorder: " << stats.nreorder << std::endl;
-      // printf("average distance computations per query: %f\n",
-      //        (float)stats.n3 / stats.n1);
-   }
-
-   { // ====================HNSW INDEX====================
-      printf("====================HNSW INDEX====================\n");
-      printf("[%.3f s] Searching the %d nearest neighbors "
-             "of %ld vectors in the index, efsearch %d\n",
-             elapsed() - t0,
-             k,
+         double t1 = elapsed();
+         // base_index.search(nq, xq, k, dis.data(), nns.data());
+         base_index.search_multi(
              nq,
-             base_index.hnsw.efSearch);
+             xq,
+             k,
+             cost.data(),
+             nns.data(),
+             aq_multi,
+             all_cost,
+             query_id,
+             metadata_multi,
+             dis_or_cost_in_search);
+         double t2 = elapsed();
 
-      std::vector<faiss::idx_t> nns(k * nq);
-      std::vector<float> dis(k * nq);
-      std::vector<float> cost(k * nq);
+         printf("[%.3f s] Query results (vector ids, then distances):\n",
+                elapsed() - t0);
 
-      int query_id = 0; // 记录查询的次数
-
-      float *all_distances = new float[nq * N]; // 存储距离结果
-      std::vector<std::vector<float>> optional_coverage;
-      std::vector<std::vector<float>> all_cost;
-      all_distances = read_all_distances(
-          std::string(MY_DIS_DIR), nq, N);
-      optional_coverage = read_optional_coverage(
-          std::string(MY_OPATTR_COVERAGE_DIR), nq, N);
-      all_cost = read_all_cost(std::string(MY_COST_DIR), nq, N);
-
-      std::cout << "nn and dis size: " << nns.size() << " " << dis.size()
-                << std::endl;
-
-      double t1 = elapsed();
-      // base_index.search(nq, xq, k, dis.data(), nns.data());
-      base_index.search_multi(
-          nq,
-          xq,
-          k,
-          cost.data(),
-          nns.data(),
-          aq_multi,
-          all_cost,
-          query_id,
-          metadata_multi,
-          dis_or_cost_in_search);
-      double t2 = elapsed();
-
-      printf("[%.3f s] Query results (vector ids, then distances):\n",
-             elapsed() - t0);
-
-      int nq_print = std::min(100, (int)nq);
-      for (int i = 0; i < nq_print; i++)
-      {
-         printf("my query %2d nn's: ", i);
-         for (int j = 0; j < k; j++)
+         int nq_print = std::min(100, (int)nq);
+         for (int i = 0; i < nq_print; i++)
          {
-            int row_idx = nns[j + i * k]; // 获取行索引
-            if (row_idx >= 0 && row_idx < metadata_multi.size())
+            printf("my query %2d nn's: ", i);
+            for (int j = 0; j < k; j++)
             {
-               // 打印该行中的所有元素
-               printf("%7ld (", nns[j + i * k]);
-               for (int val : metadata_multi[row_idx])
+               int row_idx = nns[j + i * k]; // 获取行索引
+               if (row_idx >= 0 && row_idx < metadata_multi.size())
                {
-                  printf("%d ", val);
+                  // 打印该行中的所有元素
+                  printf("%7ld (", nns[j + i * k]);
+                  for (int val : metadata_multi[row_idx])
+                  {
+                     printf("%d ", val);
+                  }
+                  printf(") ");
                }
-               printf(") ");
+               else
+               {
+                  printf("Invalid row index ");
+               }
             }
-            else
+            printf("\n     cost: \t");
+            for (int j = 0; j < k; j++)
             {
-               printf("Invalid row index ");
+               printf("%7g ", cost[j + i * k]);
             }
+            printf("\n");
          }
-         printf("\n     cost: \t");
-         for (int j = 0; j < k; j++)
-         {
-            printf("%7g ", cost[j + i * k]);
-         }
-         printf("\n");
+
+         // printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
+         double total_time = t2 - t1;
+         double qps = nq / total_time;
+         printf("[%.3f s] *** Query time: %f seconds, QPS: %f (HNSW) \n",
+                elapsed() - t0,
+                total_time,
+                qps);
+
+         std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost; // (id, cost)
+         extract_and_sort_costs(
+             all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
+         double recall = calculateRecall(sort_filter_all_cost, nns, nq, k);
+
+         total_qps_hnsw += qps;
+         total_recall_hnsw += recall;
+         std::cout << "Recall: " << recall << "(HNSW)" << std::endl;
       }
 
-      // printf("[%.3f s] *** Query time: %f\n", elapsed() - t0, t2 - t1);
-      double total_time = t2 - t1;
-      double qps = nq / total_time;
-      printf("[%.3f s] *** Query time: %f seconds, QPS: %f (HNSW) \n",
-             elapsed() - t0,
-             total_time,
-             qps);
+      { // ============= BASE HNSW QUERY PROFILING STATS =============
+         const faiss::HNSWStats &stats = faiss::hnsw_stats;
 
-      std::vector<std::vector<std::pair<int, float>>> sort_filter_all_cost; // (id, cost)
-      extract_and_sort_costs(
-          all_cost, aq_multi, metadata_multi, sort_filter_all_cost);
-      double recall = calculateRecall(sort_filter_all_cost, nns, nq, k);
-      std::cout << "Recall: " << recall << "(HNSW)" << std::endl;
+         std::cout
+             << "============= BASE HNSW QUERY PROFILING STATS ============="
+             << std::endl;
+         printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
+                elapsed() - t0,
+                k,
+                nq);
+         std::cout << "n1: " << stats.n1 << std::endl;
+         std::cout << "n2: " << stats.n2 << std::endl;
+         std::cout << "n3 (number distance comps at level 0): " << stats.n3
+                   << std::endl;
+         std::cout << "ndis: " << stats.ndis << std::endl;
+         std::cout << "nreorder: " << stats.nreorder << std::endl;
+         std::cout << "average distance computations per query: "
+                   << (float)stats.n3 / stats.n1 << std::endl;
+      }
+
+      // 销毁索引
+      std::cout << "destroy index" << std::endl;
+      base_index.reset();
+      hybrid_index.reset();
+      hybrid_index_gamma1.reset();
+      std::cout << "destroy index done" << std::endl;
    }
 
-   { // ============= BASE HNSW QUERY PROFILING STATS =============
-      const faiss::HNSWStats &stats = faiss::hnsw_stats;
+   // 计算平均值
+   double avg_qps_hnsw = total_qps_hnsw;
+   double avg_recall_hnsw = total_recall_hnsw;
+   double avg_qps_acorn = total_qps_acorn;
+   double avg_recall_acorn = total_recall_acorn;
 
-      std::cout
-          << "============= BASE HNSW QUERY PROFILING STATS ============="
-          << std::endl;
-      printf("[%.3f s] Timing results for search of k=%d nearest neighbors of nq=%ld vectors in the index\n",
-             elapsed() - t0,
-             k,
-             nq);
-      std::cout << "n1: " << stats.n1 << std::endl;
-      std::cout << "n2: " << stats.n2 << std::endl;
-      std::cout << "n3 (number distance comps at level 0): " << stats.n3
-                << std::endl;
-      std::cout << "ndis: " << stats.ndis << std::endl;
-      std::cout << "nreorder: " << stats.nreorder << std::endl;
-      std::cout << "average distance computations per query: "
-                << (float)stats.n3 / stats.n1 << std::endl;
+   // 将平均值写入到txt文件中
+   std::string avg_filename = "/home/fengxiaoyao/acorn_data/sift1M/exp_result/gamma=12/result_cost/average_cost/average_cost" + std::to_string(efs) + ".txt";
+   std::ofstream outfile(avg_filename);
+   if (outfile.is_open())
+   {
+      outfile << "efs,QPS_HNSW,Recall_HNSW,QPS_ACORN,Recall_ACORN\n";
+      outfile << "average," << avg_qps_hnsw << "," << avg_recall_hnsw << ","
+              << avg_qps_acorn << "," << avg_recall_acorn << "\n";
+      outfile.close();
+   }
+   else
+   {
+      std::cerr << "Unable to open file for writing averages.\n";
    }
 
    printf("[%.3f s] -----DONE-----\n", elapsed() - t0);

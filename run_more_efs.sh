@@ -1,11 +1,7 @@
 export debugSearchFlag=0
 #! /bin/bash
 
-# 删除 build 目录及其下的文件
 rm -rf build
-# rm -rf my_cost
-# rm -rf my_dis_of_every_query
-# rm -rf my_opattr_coverage
 
 cmake -DFAISS_ENABLE_GPU=OFF -DFAISS_ENABLE_PYTHON=OFF -DBUILD_TESTING=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -B build
 
@@ -13,15 +9,11 @@ make -C build -j faiss
 make -C build utils
 make -C build test_acorn
 
-##########################################
-# TESTING SIFT1M and PAPER
-##########################################
-now=$(date +"%m-%d-%Y")
 
-# run of sift1M test
-N=10250
+now=$(date +"%m-%d-%Y")
+N=1000000
 gamma=12
-dataset=TimeTravel
+dataset=sift1M
 M=32 
 M_beta=64
 
@@ -56,3 +48,75 @@ for efs in $(seq 10 10 1000); do
     # 将结果追加到汇总文件中
     echo "${efs},${qps_hnsw},${recall_hnsw},${qps_acorn},${recall_acorn}" >> ${summary_file}
 done
+
+
+# #!/bin/bash
+# export debugSearchFlag=0
+
+# # 编译优化参数
+# rm -rf build
+# cmake -DFAISS_ENABLE_GPU=OFF \
+#       -DFAISS_ENABLE_PYTHON=OFF \
+#       -DBUILD_TESTING=ON \
+#       -DBUILD_SHARED_LIBS=ON \
+#       -DCMAKE_BUILD_TYPE=Release \
+#       -DCMAKE_CXX_FLAGS="-march=native -O3" \
+#       -B build
+# make -C build -j faiss
+# make -C build utils
+# make -C build test_acorn
+
+# # 运行参数
+# now=$(date +"%m-%d-%Y")
+# N=1000000
+# gamma=30
+# dataset=sift1M
+# M=32 
+# M_beta=64
+
+# # 使用内存文件系统加速I/O
+# parent_dir="/dev/shm/${dataset}/${now}_${dataset}"
+# mkdir -p "${parent_dir}"
+
+# # 预创建目录
+# efs_values=($(seq 10 10 1000))
+# for efs in "${efs_values[@]}"; do
+#     mkdir -p "${parent_dir}/MB${M_beta}_efs${efs}"
+# done
+
+# # 定义任务函数
+# run_task() {
+#     local task_id=$1  # 任务编号
+#     local efs=$2      # efs 值
+#     local dir="${parent_dir}/MB${M_beta}_efs${efs}"
+#     local log_file="${dir}/summary_efs${efs}.txt"
+    
+#     # 打印任务进度（实时输出到标准错误）
+#     echo "[Progress] Task ${task_id}/${total_tasks}: efs=${efs} (Start at $(date '+%Y-%m-%d %H:%M:%S'))" >&2
+    
+#     # 绑定到特定CPU核心
+#     taskset -c $((task_id % 36)) ./build/demos/test_acorn \
+#         ${N} ${gamma} ${dataset} ${M} ${M_beta} ${efs} > "${log_file}" 2>&1
+    
+#     # 打印任务完成信息（实时输出到标准错误）
+#     echo "[Progress] Task ${task_id}/${total_tasks}: efs=${efs} (End at $(date '+%Y-%m-%d %H:%M:%S'))" >&2
+# }
+
+# # 导出函数以便 parallel 调用
+# export -f run_task
+# export parent_dir N gamma dataset M M_beta
+
+# # 分批次执行（每组12任务，共约8组）
+# max_parallel=36
+# group_size=12
+# total_tasks=${#efs_values[@]}  # 总任务数
+
+# # 使用 parallel 调用任务函数，并显示进度条
+# printf "%s\n" "${efs_values[@]}" | parallel --ungroup --bar -j $group_size "
+#     run_task {#} {}
+# "
+
+# # 结果持久化
+# persistent_dir="../acorn_data/${dataset}/${now}_${dataset}"
+# mkdir -p "${persistent_dir}"
+# rsync -a --remove-source-files "${parent_dir}/" "${persistent_dir}/"

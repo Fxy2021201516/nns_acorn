@@ -23,12 +23,12 @@ now=$(date +"%m-%d-%Y")
 
 
 # run of sift1M test
-N=10250
+N=1000000
 gamma=12
-dataset=TimeTravel
+dataset=sift1M
 M=32 
 M_beta=64
-efs=1000
+efs=16
 
 
 parent_dir=../acorn_data/${dataset}/${now}_${dataset}  
